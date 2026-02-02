@@ -1,0 +1,162 @@
+{% extends 'forecast_copra/admin_base.html' %}
+
+{% block title %}Manage Training Data{% endblock %}
+
+{% block content %}
+<h2>Manage Training Data</h2>
+
+<div style="margin-bottom: 30px;">
+    <!-- Excel Upload Section -->
+    <div style="background: #e8f5e9; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+        <h3>📁 Upload Excel File</h3>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div style="margin: 15px 0;">
+                <label>Select Excel File:</label>
+                <input type="file" name="excel_file" accept=".xlsx,.xls" required 
+                       style="padding: 8px; margin-top: 5px;">
+                <p style="font-size: 0.9em; color: #666;">
+                    File must have columns: <strong>date, farmgate_price, oil_price_trend, peso_dollar_rate</strong>
+                </p>
+                <p style="font-size: 0.9em; color: #666;">
+                    Supported formats: .xlsx, .xls
+                </p>
+            </div>
+            <button type="submit" name="excel_submit"
+                    style="padding: 10px 20px; background: #2196F3; color: white; border: none; cursor: pointer;">
+                📤 Upload & Import Data
+            </button>
+        </form>
+        
+        <!-- Download Sample Template -->
+        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+            <h4>📝 Download Sample Template</h4>
+            <p>Use this template to ensure your Excel file has the correct format:</p>
+        </div>
+    </div>
+
+    <!-- Manual Entry Section -->
+    <div style="background: #f0f8ff; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+        <h3>✏️ Add Data Manually</h3>
+        <form method="post">
+            {% csrf_token %}
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
+                <div>
+                    <label>{{ manual_form.date.label }}:</label>
+                    {{ manual_form.date }}
+                    {% if manual_form.date.errors %}
+                        <div style="color: red; font-size: 0.9em;">{{ manual_form.date.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label>{{ manual_form.farmgate_price.label }}:</label>
+                    {{ manual_form.farmgate_price }}
+                    {% if manual_form.farmgate_price.errors %}
+                        <div style="color: red; font-size: 0.9em;">{{ manual_form.farmgate_price.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label>{{ manual_form.oil_price_trend.label }}:</label>
+                    {{ manual_form.oil_price_trend }}
+                    {% if manual_form.oil_price_trend.errors %}
+                        <div style="color: red; font-size: 0.9em;">{{ manual_form.oil_price_trend.errors }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label>{{ manual_form.peso_dollar_rate.label }}:</label>
+                    {{ manual_form.peso_dollar_rate }}
+                    {% if manual_form.peso_dollar_rate.errors %}
+                        <div style="color: red; font-size: 0.9em;">{{ manual_form.peso_dollar_rate.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <button type="submit" name="manual_submit"
+                    style="margin-top: 15px; padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer;">
+                ➕ Add Single Record
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Upload History -->
+<h3>📊 Upload History</h3>
+{% if excel_uploads %}
+<table border="1" cellpadding="10" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+    <thead>
+        <tr style="background: #607d8b; color: white;">
+            <th>ID</th>
+            <th>File Name</th>
+            <th>Upload Date</th>
+            <th>Status</th>
+            <th>Rows Imported</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for upload in excel_uploads %}
+        <tr>
+            <td>{{ upload.id }}</td>
+            <td>{{ upload.file.name }}</td>
+            <td>{{ upload.uploaded_at|date:"Y-m-d H:i" }}</td>
+            <td>
+                {% if upload.processed %}
+                    <span style="color: green; font-weight: bold;">✓ Processed</span>
+                {% else %}
+                    <span style="color: orange; font-weight: bold;">⏳ Processing</span>
+                {% endif %}
+            </td>
+            <td>{{ upload.rows_imported }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No Excel files uploaded yet.</p>
+{% endif %}
+
+<!-- Data Table -->
+<h3>📈 Current Training Data ({{ data.count }} records)</h3>
+{% if data %}
+<table border="1" cellpadding="10" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background: #4CAF50; color: white;">
+            <th>Date</th>
+            <th>Farmgate Price</th>
+            <th>Oil Price Trend</th>
+            <th>Peso-Dollar Rate</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in data|slice:":50" %}  <!-- Show first 50 records -->
+        <tr>
+            <td>{{ item.date }}</td>
+            <td>{{ item.farmgate_price }}</td>
+            <td>{{ item.oil_price_trend }}</td>
+            <td>{{ item.peso_dollar_rate }}</td>
+            <td>
+                <a href="#" onclick="deleteData({{ item.id }})" 
+                   style="color: #f44336; text-decoration: none;">🗑️ Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if data.count > 50 %}
+<p>Showing first 50 of {{ data.count }} records. Use search in admin panel for more.</p>
+{% endif %}
+{% else %}
+<div style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 5px;">
+    <h3>No training data available</h3>
+    <p>Add data manually or upload an Excel file above.</p>
+</div>
+{% endif %}
+
+<script>
+function deleteData(id) {
+    if (confirm('Are you sure you want to delete this record?')) {
+        // Implement delete functionality
+        alert('Delete functionality would be implemented here. ID: ' + id);
+    }
+}
+</script>
+{% endblock %}

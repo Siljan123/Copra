@@ -1,0 +1,262 @@
+{% extends "forecast_copra/admin_base.html" %}
+{% load static %}
+
+{% block title %}Trained Models{% endblock %}
+
+{% block content %}
+
+<style>
+    /* Container Styles */
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .table-wrapper {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden; /* Ensures corners are rounded */
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: 1px solid #e1e8ed;
+    }
+
+    /* Table Reset & Layout */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1000px; /* Increased for better spacing */
+        table-layout: auto;
+    }
+
+    thead {
+        background: #455a64;
+        color: white;
+    }
+
+    th {
+        padding: 16px;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+        text-align: left; /* Default alignment */
+    }
+
+    td {
+        padding: 16px;
+        border-bottom: 1px solid #f0f2f5;
+        vertical-align: middle;
+        color: #37474f;
+    }
+
+    /* Specific Alignments */
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+
+    tbody tr:hover {
+        background: #f8fafc;
+        transition: background 0.2s ease;
+    }
+
+    .active-row {
+        background: #f0fdf4 !important;
+    }
+
+    /* Badges & UI Elements */
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .badge-active {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+
+    .badge-inactive {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+
+    /* Action Buttons */
+    .actions {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .btn {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .btn:active { transform: scale(0.95); }
+    .btn:hover { opacity: 0.9; }
+
+    .btn-activate { background: #22c55e; color: white; }
+    .btn-deactivate { background: #f59e0b; color: white; }
+    .btn-delete { background: #ef4444; color: white; }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 30px;
+        gap: 5px;
+    }
+
+    .pagination a, .pagination .current {
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 14px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .pagination a { background: white; color: #455a64; }
+    .pagination a:hover { background: #f1f5f9; }
+    .pagination .current { background: #455a64; color: white; border-color: #455a64; }
+
+    .empty-box {
+        text-align: center;
+        padding: 60px;
+        background: white;
+        border-radius: 12px;
+        border: 2px dashed #cbd5e1;
+    }
+</style>
+
+<div class="header-section">
+    <h2>📊 Trained Models</h2>
+    <span style="color: #64748b;">Total Models: {{ models.paginator.count }}</span>
+</div>
+
+{% if models %}
+<div class="table-wrapper">
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">Model Name</th>
+                <th class="text-center">Accuracy</th>
+                <th class="text-center">Order (p,d,q)</th>
+                <th>Training Date</th>
+                <th>Source</th>
+                <th class="text-center">Status</th>
+                <th class="text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for model in models %}
+            <tr class="{% if model.is_active %}active-row{% endif %}">
+                <td>
+                    <div style="font-weight: 600; color: #1e293b;">{{ model.name }}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">ID: #{{ model.id }}</div>
+                </td>
+
+                <td class="text-center">
+                    {% if model.accuracy %}
+                    <span style="font-family: monospace; font-size: 1.1em;">{{ model.accuracy }}%</span>
+                    {% else %}
+                    <span style="color: #cbd5e1;">—</span>
+                    {% endif %}
+                </td>
+
+                <td class="text-center">
+                    <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">
+                        ({{ model.p }}, {{ model.d }}, {{ model.q }})
+                    </code>
+                </td>
+
+                <td style="font-size: 0.9em; color: #64748b;">
+                    {{ model.training_date|date:"M d, Y" }}<br>
+                    <small>{{ model.training_date|date:"H:i" }}</small>
+                </td>
+
+                <td>
+                    {% if "model" in model.name.lower %}
+                    <span title="Excel Import">📁 Excel</span>
+                    {% elif "db" in model.name.lower %}
+                    <span title="Database Source">💾 Database</span>
+                    {% endif %}
+                </td>
+
+                <td class="text-center">
+                    {% if model.is_active %}
+                    <span class="badge badge-active">ACTIVE</span>
+                    {% else %}
+                    <span class="badge badge-inactive">INACTIVE</span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    <div class="actions">
+                        {% if not model.is_active %}
+                        <form method="post" action="{% url 'activate_model' model.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-activate" onclick="return confirm('Activate model?')">
+                                Activate
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'deactivate_model' model.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-deactivate" onclick="return confirm('Deactivate model?')">
+                                Deactivate
+                            </button>
+                        </form>
+                        {% endif %}
+
+                        <form method="post" action="{% url 'delete_model' model.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-delete" onclick="return confirm('Are you sure you want to delete this model permanently?')">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if models.has_other_pages %}
+<div class="pagination">
+    {% if models.has_previous %}
+        <a href="?page=1">&laquo; First</a>
+        <a href="?page={{ models.previous_page_number }}">Prev</a>
+    {% endif %}
+
+    <span class="current">
+        Page {{ models.number }} of {{ models.paginator.num_pages }}
+    </span>
+
+    {% if models.has_next %}
+        <a href="?page={{ models.next_page_number }}">Next</a>
+        <a href="?page={{ models.paginator.num_pages }}">Last &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-box">
+    <div style="font-size: 40px; margin-bottom: 10px;">empty_inventory</div>
+    <h3>No trained models found</h3>
+    <p style="color: #64748b;">Once you train an ARIMA model, it will appear in this list for management.</p>
+</div>
+{% endif %}
+
+{% endblock %}

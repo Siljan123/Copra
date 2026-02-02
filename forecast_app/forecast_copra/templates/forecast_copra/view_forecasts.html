@@ -1,0 +1,49 @@
+{% extends 'forecast_copra/base.html' %}
+
+{% block title %}My Forecasts{% endblock %}
+
+{% block content %}
+<h2>{% if user.user_type == 'farmer' %}My Forecasts{% else %}All Forecasts{% endif %}</h2>
+
+{% if forecasts %}
+<table border="1" cellpadding="10" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background: #4CAF50; color: white;">
+            {% if user.user_type == 'admin' %}
+            <th>Farmer</th>
+            {% endif %}
+            <th>Date</th>
+            <th>Oil Price</th>
+            <th>Exchange Rate</th>
+            <th>Forecast Days</th>
+            <th>Predicted Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for forecast in forecasts %}
+        <tr>
+            {% if user.user_type == 'admin' %}
+            <td>{{ forecast.farmer.username }}</td>
+            {% endif %}
+            <td>{{ forecast.created_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ forecast.farmer_input_oil_price_trend }}</td>
+            <td>{{ forecast.farmer_input_peso_dollar_rate }}</td>
+            <td>{{ forecast.forecast_horizon }} days</td>
+            <td style="font-weight: bold; color: #4CAF50;">{{ forecast.price_predicted }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div style="text-align: center; padding: 40px; background: #f5f5f5; border-radius: 5px;">
+    <h3>No forecasts found</h3>
+    <p>{% if user.user_type == 'farmer' %}
+        You haven't made any forecasts yet. 
+        <a href="{% url 'input_factors' %}">Make your first forecast</a>
+        {% else %}
+        No forecasts have been made yet.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+{% endblock %}

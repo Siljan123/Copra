@@ -1,0 +1,20 @@
+# Environments
+venv/
+env/
+
+# Large Model Files
+*.pkl
+*.joblib
+*.h5
+
+# Project Data & Uploads
+media/
+temp_training/
+excel_uploads/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Database (keep your local data local)
+*.sqlite3

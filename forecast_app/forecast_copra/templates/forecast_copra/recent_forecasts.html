@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Trail | CopraForecaster{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold premium-text">Forecast Audit Trail</h2>
+            <p class="text-slate-400 mt-2">Historical record of ARIMAX model simulations for Surigao del Sur.</p>
+        </div>
+        <div class="text-sm font-medium text-slate-500 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+            Total Entries: <span class="text-indigo-400">{{ forecasts|length }}</span>
+        </div>
+    </div>
+
+    <div class="glass-card rounded-3xl overflow-hidden">
+        {% if forecasts %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-white/10 bg-white/5">
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Timestamp</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Oil Price Trend (kg)</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">FX (PHP/USD)</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Horizon</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Predicted Price</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5">
+                    {% for forecast in forecasts %}
+                    <tr class="hover:bg-white/5 transition-colors group">
+                        <td class="px-6 py-5">
+                            <div class="text-sm font-medium text-slate-200">{{ forecast.created_at|date:"M d, Y" }}</div>
+                            <div class="text-[10px] text-slate-500 uppercase tracking-tighter">{{ forecast.created_at|date:"h:i A" }}</div>
+                        </td>
+                        <td class="px-6 py-5 text-center">
+                            <span class="text-sm text-slate-300">₱  {{ forecast.farmer_input_oil_price_trend|floatformat:3 }}</span>
+                        </td>
+                        <td class="px-6 py-5 text-center">
+                            <span class="text-sm text-slate-300">₱ {{ forecast.farmer_input_peso_dollar_rate|floatformat:2 }}</span>
+                        </td>
+                        <td class="px-6 py-5 text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                {{ forecast.forecast_horizon }} Days
+                            </span>
+                        </td>
+                        <td class="px-6 py-5 text-right">
+                            <span class="text-lg font-bold text-emerald-400 group-hover:scale-110 transition-transform inline-block origin-right">
+                                ₱ {{ forecast.price_predicted|floatformat:2 }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-20 text-center">
+            <div class="text-5xl mb-4">📂</div>
+            <h3 class="text-xl font-bold text-white">No history found</h3>
+            <p class="text-slate-500 mt-2 max-w-xs mx-auto">Generate your first market prediction to populate the audit trail.</p>
+            <a href="{% url 'home' %}" class="mt-8 inline-block px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all">
+                Go to Dashboard
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="mt-12 text-center">
+        <a href="{% url 'home' %}" class="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors group">
+            <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Return to Forecasting Engine
+        </a>
+    </div>
+</div>
+{% endblock %}

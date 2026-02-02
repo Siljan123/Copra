@@ -1,0 +1,182 @@
+{% extends 'forecast_copra/admin_base.html' %}
+
+{% block title %}Train Model{% endblock %}
+
+{% block content %}
+<h2>Train ARIMAX Model</h2>
+
+<div class="training-options">
+   
+    <!-- Option 1: Train from Excel File -->
+    <div class="option-card" style="background: #e8f5e9; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
+        <h3>📁 Option 1: Train from Spreadsheet</h3>
+        
+        <form method="post" enctype="multipart/form-data" style="margin-top: 20px;">
+            {% csrf_token %}
+            <div style="margin: 15px 0;">
+             <label><strong>Select Spreadsheet File (.xlsx, .xls):</strong></label>
+                <input type="file" name="excel_file" accept=".xlsx,.xls" required 
+                style="padding: 10px; border: 2px dashed #4CAF50; border-radius: 5px; width: 100%;">
+                <p style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                    File must have columns: <strong>date, farmgate_price, oil_price_trend, peso_dollar_rate</strong>
+                </p>
+              
+            </div>
+            <!-- ARIMAX Parameters (Optional) -->
+            <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q) - Optional</h4>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                    Leave as default (1,1,1) or customize for better model performance
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <label><strong>p (AR order):</strong></label>
+                        <input type="number" name="p" value="1" min="0" max="10"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Autoregressive (default: 1)</small>
+                    </div>
+                    <div>
+                        <label><strong>d (I order):</strong></label>
+                        <input type="number" name="d" value="1" min="0" max="5"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Differencing (default: 1)</small>
+                    </div>
+                    <div>
+                        <label><strong>q (MA order):</strong></label>
+                        <input type="number" name="q" value="1" min="0" max="10"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Moving Average (default: 1)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" name="excel_train" 
+                    style="padding: 12px 25px; background: #4CAF50; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
+                🚀 Train from Excel File
+            </button>
+        </form>
+    </div>
+    
+    <!-- Option 2: Train from Database -->
+    <div class="option-card" style="background: #fff3e0; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
+        <h3>💾 Option 2: Train from Database</h3>
+        <p>Train using data already stored in the database</p>
+        
+        <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Database Statistics:</strong></p>
+            <p>✅ <strong>{{ data_count }}</strong> training records available</p>
+            {% if data_count < 100 %}
+                <p style="color: #f44336;">❌ Need at least 100 records to train</p>
+            {% else %}
+                <p style="color: #4CAF50;">✓ Sufficient data for training</p>
+            {% endif %}
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <!-- ARIMAX Parameters (Optional) -->
+            <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q) - Optional</h4>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                    Leave as default (1,1,1) or customize for better model performance
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <label><strong>p (AR order):</strong></label>
+                        <input type="number" name="p" value="1" min="0" max="10"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Autoregressive (default: 1)</small>
+                    </div>
+                    <div>
+                        <label><strong>d (I order):</strong></label>
+                        <input type="number" name="d" value="1" min="0" max="5"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Differencing (default: 1)</small>
+                    </div>
+                    <div>
+                        <label><strong>q (MA order):</strong></label>
+                        <input type="number" name="q" value="1" min="0" max="10"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Moving Average (default: 1)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" name="db_train" 
+                    {% if data_count < 10 %}disabled{% endif %}
+                    style="padding: 12px 25px; background: #ff9800; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
+                🚀 Train from Database
+            </button>
+            
+            {% if data_count < 10 %}
+                <p style="color: #f44336; margin-top: 10px;">
+                    ⚠️ Add more data in "Manage Data" section first
+                </p>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+{% if graph %}
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 text-primary"><i class="fas fa-chart-line me-2"></i> Model Performance Visualization</h5>
+    </div>
+    <div class="card-body text-center bg-light">
+        <img src="data:image/png;base64,{{ graph }}" alt="ARIMAX Performance Graph" class="img-fluid rounded w-full" style="max-height: 450px; border: 1px solid #ddd;">
+        <div class="mt-3 row justify-content-center">
+            <div class="col-md-8">
+                <div class="d-flex justify-content-around small text-muted">
+                    <span><strong style="color: #2ecc71;">━</strong> Actual Historical Price</span>
+                    <span><strong style="color: #e74c3c;">---</strong> Model Prediction</span>
+                </div>
+                <p class="mt-2 mb-0 x-small text-muted">
+                    Showing evaluation on the <strong>Test & Validation sets</strong> (last 30% of data).
+                </p>
+            </div>
+        </div>
+        <div class="row mt-4">
+    <div class="col-md-6">
+        <div class="p-3 border rounded bg-light">
+            <h6 class="text-muted mb-1">AIC (Akaike Information Criterion)</h6>
+            <h4 class="mb-0">{{ metrics.aic|floatformat:2 }}</h4>
+            <small class="text-secondary">Measures model quality vs. complexity.</small>
+        </div>
+    </div>
+    <div class="col-md-6">
+        {% comment %} <div class="p-3 border rounded bg-light">
+            <h6 class="text-muted mb-1">BIC (Bayesian Information Criterion)</h6>
+            <h4 class="mb-0">{{ metrics.bic|floatformat:2 }}</h4>
+            <small class="text-secondary">Penalizes overfitting more strictly than AIC.</small>
+        </div> {% endcomment %}
+    </div>
+</div>
+    </div>
+</div>
+    {% endif %}
+
+<style>
+    .training-options {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .option-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        border: 2px solid transparent;
+    }
+    
+    .option-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    @media (min-width: 768px) {
+        .training-options {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
