@@ -1,3 +1,4 @@
+{% load static tailwind_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,12 +7,9 @@
     <title>Forecast Result - Copra Price</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% tailwind_css %}
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #0f172a;
@@ -19,37 +17,29 @@
             padding: 20px;
             color: #f1f5f9;
         }
-        /* Background gradients matching base.html */
         body::before {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: radial-gradient(circle at top left, rgba(79, 70, 229, 0.15), transparent 50%);
             z-index: -1;
         }
         body::after {
             content: '';
             position: fixed;
-            top: 0;
-            right: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; right: 0;
+            width: 100%; height: 100%;
             background: radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.1), transparent 50%);
             z-index: -1;
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .container { margin: 0 auto; }
         .card {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 24px;
-            padding: 40px;
+            padding: clamp(16px, 4vw, 40px);
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             margin-bottom: 20px;
         }
@@ -83,13 +73,12 @@
             font-size: 1.5em;
         }
         .price-display {
-            font-size: 4em;
+            font-size: clamp(2.2rem, 8vw, 4rem);
             font-weight: bold;
             background: linear-gradient(135deg, #10b981, #059669);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin: 30px 0;
-            text-shadow: 2px 2px 5px rgba(0,0,0,0.1);
             text-align: center;
             animation: pulse-glow 3s ease-in-out infinite;
         }
@@ -116,20 +105,158 @@
             border-color: rgba(16, 185, 129, 0.4);
             transform: translateY(-2px);
         }
-        .info-label {
-            font-weight: 600;
-            color: #94a3b8;
-            margin-bottom: 5px;
-            font-size: 0.9em;
+        .info-label { font-weight: 600; color: #94a3b8; margin-bottom: 5px; font-size: 0.9em; }
+        .info-value { font-size: 1.4em; color: #10b981; font-weight: bold; }
+
+        /* ── Recommendations ─────────────────────────────────── */
+        .recommendations-section {
+            margin: 40px 0;
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(16, 185, 129, 0.05));
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid rgba(79, 70, 229, 0.3);
+            position: relative;
+            overflow: hidden;
         }
-        .info-value {
-            font-size: 1.4em;
+        .recommendations-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4f46e5, #10b981, #4f46e5);
+            background-size: 200% 100%;
+            animation: shimmer 3s linear infinite;
+        }
+        @keyframes shimmer {
+            0%   { background-position: -200% 0; }
+            100% { background-position:  200% 0; }
+        }
+        .recommendations-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        .recommendations-header h3 {
+            margin: 0;
+            font-size: 1.8em;
+            background: linear-gradient(to right, #a78bfa, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .recommendations-header .icon {
+            font-size: 2em;
+            filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.5));
+        }
+
+        /* Summary */
+        .summary-recommendation {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid #10b981;
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .summary-recommendation .label {
             color: #10b981;
-            font-weight: bold;
+            font-weight: 700;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+        .summary-recommendation .text {
+            color: #e2e8f0;
+            font-size: 1.15em;
+            line-height: 1.7;
+            font-weight: 500;
+        }
+
+        /* Market Stats */
+        .market-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        .market-stat {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .market-stat:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(167, 139, 250, 0.2);
+        }
+        .market-stat-label { font-size: 0.85em; color: #94a3b8; margin-bottom: 8px; font-weight: 600; }
+        .market-stat-value {
+            font-size: 1.6em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #a78bfa, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .market-stat-change { font-size: 0.8em; margin-top: 4px; font-weight: 600; }
+        .positive-change { color: #10b981; }
+        .negative-change { color: #ef4444; }
+
+        /* Recommendation Items */
+        .recommendations-list { display: grid; gap: 16px; margin-top: 10px; }
+
+        .recommendation-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 20px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .recommendation-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(167, 139, 250, 0.4);
+            transform: translateX(4px);
+            box-shadow: -4px 0 0 rgba(167, 139, 250, 0.5);
+        }
+
+        /* Color-code each recommendation by type */
+        .rec-optimal    { border-left: 4px solid #10b981; }
+        .rec-sellwait   { border-left: 4px solid #3b82f6; }
+        .rec-risk       { border-left: 4px solid #f59e0b; }
+        .rec-pricerange { border-left: 4px solid #a78bfa; }
+        .rec-market     { border-left: 4px solid #64748b; }
+
+        .rec-title {
+            font-size: 0.8em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
+        }
+        .rec-optimal    .rec-title { color: #10b981; }
+        .rec-sellwait   .rec-title { color: #3b82f6; }
+        .rec-risk       .rec-title { color: #f59e0b; }
+        .rec-pricerange .rec-title { color: #a78bfa; }
+        .rec-market     .rec-title { color: #94a3b8; }
+
+        .rec-body {
+            color: #cbd5e1;
+            line-height: 1.7;
+            font-size: 1.02em;
+        }
+        .rec-body strong { color: #f1f5f9; }
+
+        /* Chart & Table */
         .chart-container {
             position: relative;
-            height: 400px;
+            height: clamp(260px, 50vw, 400px);
             margin: 30px 0;
             background: rgba(255, 255, 255, 0.03);
             padding: 20px;
@@ -159,16 +286,11 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             color: #cbd5e1;
         }
-        .forecast-table tr:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .forecast-table tr:last-child td {
-            border-bottom: none;
-        }
-        .forecast-table td strong {
-            color: #10b981;
-            font-size: 1.1em;
-        }
+        .forecast-table tr:hover { background: rgba(255, 255, 255, 0.05); }
+        .forecast-table tr:last-child td { border-bottom: none; }
+        .forecast-table td strong { color: #10b981; font-size: 1.1em; }
+
+        /* Buttons */
         .btn {
             display: inline-block;
             background: rgba(16, 185, 129, 0.2);
@@ -198,65 +320,9 @@
             border-color: rgba(79, 70, 229, 0.5);
             box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2);
         }
-        .note {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(251, 191, 36, 0.1);
-            border-radius: 16px;
-            color: #fbbf24;
-            font-size: 0.9em;
-            border: 1px solid rgba(251, 191, 36, 0.2);
-            line-height: 1.6;
-        }
-        .note strong {
-            color: #fcd34d;
-        }
-        .button-container {
-            text-align: center;
-            margin-top: 40px;
-        }
-        .stats-summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .stat-box {
-            background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(118, 75, 162, 0.2));
-            color: white;
-            padding: 20px;
-            border-radius: 16px;
-            text-align: center;
-            border: 1px solid rgba(79, 70, 229, 0.3);
-            transition: all 0.3s ease;
-        }
-        .stat-box:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
-        }
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.8;
-            margin-bottom: 5px;
-            color: #cbd5e1;
-        }
-        .stat-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #a78bfa;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        .animate-float {
-            animation: float 6s ease-in-out infinite;
-        }
-        .premium-text {
-            background: linear-gradient(to right, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        .button-container { text-align: center; margin-top: 40px; }
+
+        /* Nav */
         nav {
             display: flex;
             justify-content: space-between;
@@ -264,25 +330,15 @@
             margin-bottom: 48px;
             padding: 20px 0;
         }
-        nav .logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        nav .logo span:first-child {
-            font-size: 1.875rem;
-        }
+        nav .logo { display: flex; align-items: center; gap: 8px; }
+        nav .logo span:first-child { font-size: 1.875rem; }
         nav .logo span:last-child {
             font-size: 1.25rem;
             font-weight: 700;
             letter-spacing: -0.025em;
             text-transform: uppercase;
         }
-        nav .nav-links {
-            display: flex;
-            gap: 24px;
-            align-items: center;
-        }
+        nav .nav-links { display: flex; gap: 24px; align-items: center; }
         nav .nav-links a {
             font-size: 0.875rem;
             font-weight: 500;
@@ -290,269 +346,320 @@
             text-decoration: none;
             transition: color 0.3s ease;
         }
-        nav .nav-links a:hover {
-            color: #fff;
-        }
+        nav .nav-links a:hover { color: #fff; }
         nav .admin-btn {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255,255,255,0.03);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255,255,255,0.1);
             padding: 8px 24px;
             border-radius: 999px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
-        nav .admin-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+        nav .admin-btn:hover { background: rgba(255,255,255,0.1); }
+        .premium-text {
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50%       { transform: translateY(-10px); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+
+        @media (max-width: 768px) {
+            nav { flex-direction: column; gap: 20px; }
+            .chart-container { height: 300px; }
+            .info-grid, .market-stats { grid-template-columns: 1fr; }
+            .forecast-table { display: block; overflow-x: auto; white-space: nowrap; }
+            .price-display { font-size: 2.5rem; }
+            .recommendations-header h3 { font-size: 1.4em; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Navigation Header from base.html -->
-        <nav>
-            <div class="logo">
-                <span>🌴</span>
-                <span class="premium-text">CopraForecaster</span>
-            </div>
-            <div class="nav-links">
-                <a href="{% url 'home' %}">Request forecast</a>
-                <a href="{% url 'recent_forecasts' %}">History</a>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'admin_dashboard' %}" class="admin-btn">Admin Portal 🔐</a>
-                {% endif %}
-            </div>
-        </nav>
-        
-        <div class="card animate-float">
-           
-            <h1>Forecast Generated Successfully!</h1>
-            <h2>Your Copra Price Prediction</h2>
-            
-            <div class="price-display">₱{{ predicted_price|floatformat:2 }}</div>
-            
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">Oil Price Trend</div>
-                    <div class="info-value">{{ oil_price }}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Exchange Rate (₱/$)</div>
-                    <div class="info-value">{{ peso_dollar_rate }}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Forecast Period</div>
-                    <div class="info-value">{{ forecast_horizon }} days</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Model Accuracy</div>
-                    <div class="info-value">{{ accuracy }}%</div>
-                </div>
-            </div>
+<div class="container">
 
-            <h3>📈 Price Forecast Trend</h3>
-            <div class="chart-container">
-                <canvas id="forecastChart"></canvas>
-            </div>
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">
+            <span>🌴</span>
+            <span class="premium-text">CopraForecaster</span>
+        </div>
+        <div class="nav-links">
+            <a href="{% url 'home' %}">Request Forecast</a>
+            <a href="{% url 'recent_forecasts' %}">History</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'admin_dashboard' %}" class="admin-btn">Admin Portal 🔐</a>
+            {% endif %}
+        </div>
+    </nav>
 
-            
-            <h3>📊 Detailed Forecast Timeline</h3>
-            <table class="forecast-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Predicted Price (₱)</th>
-                        <th>Day</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for date, price in forecast_data %}
-                    <tr>
-                        <td>{{ date }}</td>
-                        <td><strong>₱{{ price|floatformat:2 }}</strong></td>
-                        <td>Day {{ forloop.counter }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            
-            <div class="note">
-                <strong>📌 Note:</strong> This forecast is based on the ARIMAX model ({{ model_name }}). 
-                The prediction uses historical data and the input parameters you provided (Oil Price: {{ oil_price }}, Exchange Rate: {{ peso_dollar_rate }}). 
-                Actual prices may vary based on market conditions and unforeseen factors.
+    <!-- Main Card -->
+    <div class="card animate-float">
+        <h1>Forecast Generated Successfully!</h1>
+        <h2>Your Copra Price Prediction</h2>
+
+        <div class="price-display">₱{{ predicted_price|floatformat:2 }}</div>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Oil Price Trend</div>
+                <div class="info-value">{{ oil_price }}</div>
             </div>
-            
-            <div class="button-container">
-                <a href="{% url 'home' %}" class="btn">🔄 Make Another Forecast</a>
-                <a href="{% url 'recent_forecasts' %}" class="btn btn-secondary">📊 View All Forecasts</a>
+            <div class="info-item">
+                <div class="info-label">Exchange Rate (₱/$)</div>
+                <div class="info-value">{{ peso_dollar_rate }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Forecast Period</div>
+                <div class="info-value">{{ forecast_horizon }} days</div>
             </div>
         </div>
-        
-        <!-- Footer from base.html -->
-        <footer style="margin-top: 80px; padding-top: 32px; border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center; color: #64748b; font-size: 0.875rem;">
-            <p>© 2024 Copra Price Analytics • Built for Surigao del Sur Farmers</p>
-        </footer>
+
+        <!-- ══════════════════════════════════════════════════════
+             RECOMMENDATIONS SECTION (Objective 2)
+        ══════════════════════════════════════════════════════ -->
+        {% if summary_recommendation or recommendations %}
+        <div class="recommendations-section">
+
+            <div class="recommendations-header">
+                <span class="icon">🌾</span>
+                <h3>Selling Recommendations</h3>
+            </div>
+
+            <!-- Key Summary -->
+            {% if summary_recommendation %}
+            <div class="summary-recommendation">
+                <div class="label"><span>💡</span><span>Key Recommendation</span></div>
+                <div class="text">{{ summary_recommendation }}</div>
+            </div>
+            {% endif %}
+
+            <!-- Market Stats Row -->
+            <div class="market-stats">
+                {% if trend %}
+                <div class="market-stat">
+                    <div class="market-stat-label">Market Trend</div>
+                    <div class="market-stat-value">
+                        {% if trend == 'increasing' %}📈 Rising
+                        {% elif trend == 'decreasing' %}📉 Declining
+                        {% else %}➡️ Stable{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if volatility %}
+                <div class="market-stat">
+                    <div class="market-stat-label">Price Volatility</div>
+                    <div class="market-stat-value">{{ volatility|floatformat:1 }}%</div>
+                    <div class="market-stat-change {% if volatility > 10 %}negative-change{% else %}positive-change{% endif %}">
+                        {% if volatility > 10 %}High Risk{% elif volatility > 5 %}Moderate{% else %}Low Risk{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if price_range %}
+                <div class="market-stat">
+                    <div class="market-stat-label">Price Range</div>
+                    <div class="market-stat-value">₱{{ price_range.min|floatformat:2 }} – ₱{{ price_range.max|floatformat:2 }}</div>
+                </div>
+                <div class="market-stat">
+                    <div class="market-stat-label">Average Price</div>
+                    <div class="market-stat-value">₱{{ price_range.avg|floatformat:2 }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- ── 5 Detailed Recommendations ── -->
+            {% if recommendations %}
+            <div class="recommendations-list">
+
+                {% for rec in recommendations %}
+
+                    {# 1. OPTIMAL SELLING TIME #}
+                    {% if forloop.counter == 1 %}
+                    <div class="recommendation-item rec-optimal">
+                        <div class="rec-title">📅 Optimal Selling Time</div>
+                        <div class="rec-body">{{ rec|safe }}</div>
+                    </div>
+
+                    {# 2. SELL OR WAIT #}
+                    {% elif forloop.counter == 2 %}
+                    <div class="recommendation-item rec-sellwait">
+                        <div class="rec-title">⏳ Sell Now or Wait?</div>
+                        <div class="rec-body">{{ rec|safe }}</div>
+                    </div>
+
+                    {# 3. RISK ADVISORY #}
+                    {% elif forloop.counter == 3 %}
+                    <div class="recommendation-item rec-risk">
+                        <div class="rec-title">⚠️ Risk Advisory</div>
+                        <div class="rec-body">{{ rec|safe }}</div>
+                    </div>
+
+                    {# 4. PRICE RANGE AWARENESS #}
+                    {% elif forloop.counter == 4 %}
+                    <div class="recommendation-item rec-pricerange">
+                        <div class="rec-title">💰 Price Range Awareness</div>
+                        <div class="rec-body">{{ rec|safe }}</div>
+                    </div>
+
+                    {# 5. MARKET FACTORS #}
+                    {% elif forloop.counter == 5 %}
+                    <div class="recommendation-item rec-market">
+                        <div class="rec-title">🌍 Market Factors Reminder</div>
+                        <div class="rec-body">{{ rec|safe }}</div>
+                    </div>
+
+                    {% endif %}
+                {% endfor %}
+
+            </div>
+            {% endif %}
+
+        </div>
+        {% endif %}
+        <!-- ══════════════════════════════════════════════════════ -->
+
+        <!-- Chart -->
+        <h3>Price Forecast Trend</h3>
+        <div class="chart-container">
+            <canvas id="forecastChart"></canvas>
+        </div>
+
+        <!-- Forecast Table -->
+        <h3>Detailed Forecast Timeline</h3>
+        <table class="forecast-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Predicted Price (₱)</th>
+                    <th>Day</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for date, price in forecast_data %}
+                <tr>
+                    <td>{{ date }}</td>
+                    <td><strong>₱{{ price|floatformat:2 }}</strong></td>
+                    <td>Day {{ forloop.counter }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="button-container">
+            <a href="{% url 'home' %}" class="btn">🔄 Make Another Forecast</a>
+            <a href="{% url 'recent_forecasts' %}" class="btn btn-secondary">📊 View All Forecasts</a>
+        </div>
     </div>
 
-    <script>
-        // Prepare data for Chart.js
-        const forecastData = [
-            {% for date, price in forecast_data %}
-            {
-                date: '{{ date }}',
-                price: {{ price }}
-            }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
+</div>
 
-        const dates = forecastData.map(item => item.date);
-        const prices = forecastData.map(item => item.price);
+<script>
+    const forecastData = [
+        {% for date, price in forecast_data %}
+        { date: '{{ date }}', price: {{ price }} }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
 
-        // Calculate trend line
-        const firstPrice = prices[0];
-        const lastPrice = prices[prices.length - 1];
-        const priceChange = lastPrice - firstPrice;
-        const changePercent = ((priceChange / firstPrice) * 100).toFixed(2);
+    const dates  = forecastData.map(d => d.date);
+    const prices = forecastData.map(d => d.price);
 
-        // Create gradient
-        const ctx = document.getElementById('forecastChart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+    const ctx = document.getElementById('forecastChart').getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
-        // Create chart
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: dates,
-                datasets: [{
-                    label: 'Predicted Copra Price (₱)',
-                    data: prices,
-                    borderColor: '#10b981',
-                    backgroundColor: gradient,
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#10b981',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointHoverRadius: 7,
-                    pointHoverBackgroundColor: '#059669',
-                    pointHoverBorderWidth: 3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                size: 14,
-                                weight: '600'
-                            },
-                            color: '#94a3b8'
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        titleColor: '#fff',
-                        bodyColor: '#10b981',
-                        titleFont: {
-                            family: 'Plus Jakarta Sans',
-                            size: 14
-                        },
-                        bodyFont: {
-                            family: 'Plus Jakarta Sans',
-                            size: 13,
-                            weight: '600'
-                        },
-                        padding: 12,
-                        cornerRadius: 8,
-                        borderColor: 'rgba(16, 185, 129, 0.3)',
-                        borderWidth: 1,
-                        callbacks: {
-                            label: function(context) {
-                                return 'Price: ₱' + context.parsed.y.toFixed(2);
-                            }
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Copra Price Forecast - {{ forecast_horizon }} Days Ahead',
-                        font: {
-                            family: 'Plus Jakarta Sans',
-                            size: 16,
-                            weight: 'bold'
-                        },
-                        color: '#cbd5e1',
-                        padding: 20
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Predicted Copra Price (₱)',
+                data: prices,
+                borderColor: '#10b981',
+                backgroundColor: gradient,
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointBackgroundColor: '#10b981',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 7,
+                pointHoverBackgroundColor: '#059669',
+                pointHoverBorderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        font: { family: 'Plus Jakarta Sans', size: 14, weight: '600' },
+                        color: '#94a3b8'
                     }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        ticks: {
-                            callback: function(value) {
-                                return '₱' + value.toFixed(2);
-                            },
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                size: 12
-                            },
-                            color: '#64748b'
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.05)',
-                            drawBorder: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Price (₱)',
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                size: 13,
-                                weight: 'bold'
-                            },
-                            color: '#94a3b8'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45,
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                size: 10
-                            },
-                            color: '#64748b'
-                        },
-                        grid: {
-                            display: false,
-                            drawBorder: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Date',
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                size: 13,
-                                weight: 'bold'
-                            },
-                            color: '#94a3b8'
-                        }
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    titleColor: '#fff',
+                    bodyColor: '#10b981',
+                    titleFont: { family: 'Plus Jakarta Sans', size: 14 },
+                    bodyFont: { family: 'Plus Jakarta Sans', size: 13, weight: '600' },
+                    padding: 12,
+                    cornerRadius: 8,
+                    borderColor: 'rgba(16, 185, 129, 0.3)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: ctx => 'Price: ₱' + ctx.parsed.y.toFixed(2)
                     }
                 },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
+                title: {
+                    display: true,
+                    text: 'Copra Price Forecast – {{ forecast_horizon }} Days Ahead',
+                    font: { family: 'Plus Jakarta Sans', size: 16, weight: 'bold' },
+                    color: '#cbd5e1',
+                    padding: 20
                 }
-            }
-        });
-    </script>
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: v => '₱' + v.toFixed(2),
+                        font: { family: 'Plus Jakarta Sans', size: 12 },
+                        color: '#64748b'
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                    title: {
+                        display: true, text: 'Price (₱)',
+                        font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
+                        color: '#94a3b8'
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45, minRotation: 45,
+                        font: { family: 'Plus Jakarta Sans', size: 10 },
+                        color: '#64748b'
+                    },
+                    grid: { display: false, drawBorder: false },
+                    title: {
+                        display: true, text: 'Date',
+                        font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
+                        color: '#94a3b8'
+                    }
+                }
+            },
+            interaction: { intersect: false, mode: 'index' }
+        }
+    });
+</script>
 </body>
 </html>

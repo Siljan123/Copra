@@ -36,6 +36,7 @@ INTERNAL_IPS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -46,6 +47,53 @@ INSTALLED_APPS = [
     'theme',
     'forecast_copra',
 ]
+JAZZMIN_SETTINGS = {
+    "site_title": "Farmgate Forecast Admin",
+    "site_header": "Farmgate Price Forecasting",
+    "site_brand": "Data management",
+    "welcome_sign": "Welcome to the Forecast Admin Panel",
+    "copyright": "Farmgate Forecast System",
+
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Admin Panel", "url": "/admin-panel/dashboard", "new_window": True},
+    ],
+    "hide_models": ["auth.group"], 
+    "icons": {
+        "auth":                          "fas fa-users-cog",
+        "forecast_copra.trainingdata":   "fas fa-database",
+        "forecast_copra.trainedmodel":   "fas fa-brain",
+        "forecast_copra.forecastlog":    "fas fa-chart-line",
+        "forecast_copra.excelupload":    "fas fa-file-excel",
+    },
+
+    "order_with_respect_to": [
+        "forecast_copra.user",
+        "forecast_copra.trainingdata",
+        "forecast_copra.trainedmodel",
+        "forecast_copra.forecastlog",
+        "forecast_copra.excelupload",
+    ],
+
+    "list_filter_sticky": True,
+    "show_ui_builder": False,        # Visual UI tweaker in the top bar
+    "related_modal_active": True,
+    "show_sidebar": True,
+    "navigation_expanded": True,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "brand_colour": "navbar-success",
+    "accent": "accent-teal",
+    "navbar": "navbar-green",
+    "no_navbar_border": True,
+    "navbar_fixed": True,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-success",
+    "theme": "flatly",
+    "dark_mode_theme": "darkly",
+    "actions_sticky_top": True,
+}
 
 TAILWIND_APP_NAME = "theme"
 INTERNAL_IPS = ["127.0.0.1"]
@@ -155,3 +203,5 @@ STATICFILES_DIRS = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+

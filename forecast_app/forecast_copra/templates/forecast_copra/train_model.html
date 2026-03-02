@@ -9,24 +9,58 @@
    
     <!-- Option 1: Train from Excel File -->
     <div class="option-card" style="background: #e8f5e9; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
-        <h3>📁 Option 1: Train from Spreadsheet</h3>
+        <h3 class="text-lg font-semibold text-yellow-500">Train from Spreadsheet for Training and Evaluation</h3>
         
         <form method="post" enctype="multipart/form-data" style="margin-top: 20px;">
             {% csrf_token %}
             <div style="margin: 15px 0;">
-             <label><strong>Select Spreadsheet File (.xlsx, .xls):</strong></label>
+                <label><strong>Select Spreadsheet File (.xlsx, .xls):</strong></label>
                 <input type="file" name="excel_file" accept=".xlsx,.xls" required 
                 style="padding: 10px; border: 2px dashed #4CAF50; border-radius: 5px; width: 100%;">
                 <p style="font-size: 0.9em; color: #666; margin-top: 5px;">
                     File must have columns: <strong>date, farmgate_price, oil_price_trend, peso_dollar_rate</strong>
                 </p>
-              
             </div>
+
+            <!-- NEW: Train/Val/Test Split Ratios -->
+            <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <h4 style="margin-top: 0;"> Data Split Ratios</h4>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                    Configure how data is split for training, validation, and testing (must sum to 1.0)
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div>
+                        <label><strong>Train Ratio:</strong></label>
+                        <input type="number" name="train_ratio" value="0.70" min="0.5" max="0.9" step="0.05"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Model training (default: 0.70)</small>
+                    </div>
+                    <div>
+                        <label><strong>Validation Ratio:</strong></label>
+                        <input type="number" name="val_ratio" value="0.15" min="0.05" max="0.3" step="0.05"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Hyperparameter tuning (default: 0.15)</small>
+                    </div>
+                    <div>
+                        <label><strong>Test Ratio:</strong></label>
+                        <input type="number" name="test_ratio" value="0.15" min="0.05" max="0.3" step="0.05"
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <small style="color: #666;">Final evaluation (default: 0.15)</small>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-radius: 3px;">
+                    <small style="color: #1976d2;">
+                        <strong>ℹ️ Info:</strong> Train set builds the model, Validation set helps tune parameters (p,d,q), 
+                        Test set provides unbiased final performance metrics.
+                    </small>
+                </div>
+            </div>
+            
             <!-- ARIMAX Parameters (Optional) -->
             <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q) - Optional</h4>
+                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q)</h4>
                 <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                    Leave as default (1,1,1) or customize for better model performance
+                    Leave as default (1,1,1) or customize based on ACF/PACF diagnostics
                 </p>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
                     <div>
@@ -49,24 +83,27 @@
                     </div>
                 </div>
             </div>
-            
+            <button type="submit" name="diagnose"
+                    style="padding: 12px 25px; background: #2196F3; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px; margin-right: 10px;">
+                📊 Diagnose Data (View Raw Series)
+            </button>
             <button type="submit" name="excel_train" 
                     style="padding: 12px 25px; background: #4CAF50; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
-                🚀 Train from Excel File
+                Train & Evaluate Model
             </button>
         </form>
     </div>
     
     <!-- Option 2: Train from Database -->
     <div class="option-card" style="background: #fff3e0; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
-        <h3>💾 Option 2: Train from Database</h3>
-        <p>Train using data already stored in the database</p>
+        <h3 class="text-lg font-semibold text-emerald-500">Train from Database for Deployment</h3>
+        <p>Train using 100% of database data (no validation/test split - for production deployment)</p>
         
         <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <p><strong>Database Statistics:</strong></p>
-            <p>✅ <strong>{{ data_count }}</strong> training records available</p>
+            <p><strong>{{ data_count }}</strong> training records available</p>
             {% if data_count < 100 %}
-                <p style="color: #f44336;">❌ Need at least 100 records to train</p>
+                <p style="color: #f44336;">⚠️ Need at least 100 records to train</p>
             {% else %}
                 <p style="color: #4CAF50;">✓ Sufficient data for training</p>
             {% endif %}
@@ -77,9 +114,9 @@
             
             <!-- ARIMAX Parameters (Optional) -->
             <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q) - Optional</h4>
+                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q)</h4>
                 <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                    Leave as default (1,1,1) or customize for better model performance
+                    Use parameters validated from Excel training, or leave as default
                 </p>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
                     <div>
@@ -106,7 +143,7 @@
             <button type="submit" name="db_train" 
                     {% if data_count < 10 %}disabled{% endif %}
                     style="padding: 12px 25px; background: #ff9800; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
-                🚀 Train from Database
+                🚀 Train from Database (100% Data)
             </button>
             
             {% if data_count < 10 %}
@@ -121,7 +158,7 @@
 {% if graph %}
 <div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
     <div class="card-header bg-white py-3">
-        <h5 class="mb-0 text-primary"><i class="fas fa-chart-line me-2"></i> Model Performance Visualization</h5>
+        <h5 class="mb-0 text-primary"><i class="fas fa-chart-line me-2"></i> Model Performance on Test Set</h5>
     </div>
     <div class="card-body text-center bg-light">
         <img src="data:image/png;base64,{{ graph }}" alt="ARIMAX Performance Graph" class="img-fluid rounded w-full" style="max-height: 450px; border: 1px solid #ddd;">
@@ -132,29 +169,196 @@
                     <span><strong style="color: #e74c3c;">---</strong> Model Prediction</span>
                 </div>
                 <p class="mt-2 mb-0 x-small text-muted">
-                    Showing evaluation on the <strong>Test & Validation sets</strong> (last 30% of data).
+                    This shows the <strong>test set</strong> - data the model has never seen during training.
                 </p>
             </div>
         </div>
-        <div class="row mt-4">
-    <div class="col-md-6">
-        <div class="p-3 border rounded bg-light">
-            <h6 class="text-muted mb-1">AIC (Akaike Information Criterion)</h6>
-            <h4 class="mb-0">{{ metrics.aic|floatformat:2 }}</h4>
-            <small class="text-secondary">Measures model quality vs. complexity.</small>
+    </div>
+</div>
+{% endif %}
+
+<!-- NEW: Enhanced Metrics Display with Validation and Test -->
+{% if metrics.aic %}
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 text-primary"><i class="fas fa-chart-bar me-2"></i> Model Performance Metrics</h5>
+    </div>
+    <div class="card-body bg-light">
+        <div class="row">
+            <!-- AIC Card -->
+            <div class="col-md-12 mb-3">
+                <div class="p-3 border rounded bg-white">
+                    <h6 class="text-muted mb-1">AIC (Akaike Information Criterion)</h6>
+                    <h4 class="mb-2">{{ metrics.aic|floatformat:2 }}</h4>
+                    <small class="text-secondary">
+                        Lower AIC indicates better model fit. Compare different (p,d,q) values to find optimal parameters.
+                    </small>
+                </div>
+            </div>
+
+            {% if not metrics.is_deployment %}
+            <!-- Validation Metrics (only for Excel training) -->
+            <div class="col-md-6 mb-3">
+                <div class="p-3 border rounded bg-white" style="border-left: 4px solid #ff9800 !important;">
+                    <h6 class="mb-2">
+                        <span class="badge bg-warning text-dark">Validation Set</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Used for hyperparameter tuning</p>
+                    <div class="d-flex flex-column small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><strong>MAE:</strong></span>
+                            <span class="text-end">{{ metrics.val_mae|floatformat:4 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><strong>RMSE:</strong></span>
+                            <span class="text-end">{{ metrics.val_rmse|floatformat:4 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span><strong>MAPE:</strong></span>
+                            <span class="text-end">{{ metrics.val_mape|floatformat:2 }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Metrics (only for Excel training) -->
+            <div class="col-md-6 mb-3">
+                <div class="p-3 border rounded bg-white" style="border-left: 4px solid #4CAF50 !important;">
+                    <h6 class="mb-2">
+                        <span class="badge bg-success">Test Set (Final)</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Unbiased final evaluation</p>
+                    <div class="d-flex flex-column small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><strong>MAE:</strong></span>
+                            <span class="text-end">{{ metrics.mae|floatformat:4 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><strong>RMSE:</strong></span>
+                            <span class="text-end">{{ metrics.rmse|floatformat:4 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span><strong>MAPE:</strong></span>
+                            <span class="text-end">{{ metrics.mape|floatformat:2 }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interpretation Guide -->
+            <div class="col-md-12">
+                <div class="alert alert-info mb-0" style="font-size: 0.9em;">
+                    <strong>📊 How to interpret:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Validation metrics</strong> help you choose the best (p,d,q). If validation error is much higher than training, you may be overfitting.</li>
+                        <li><strong>Test metrics</strong> show true model performance on unseen data. Use these for final model comparison.</li>
+                        <li><strong>MAPE</strong> (Mean Absolute Percentage Error): Lower is better. <5% is excellent, 5-10% is good, >20% needs improvement.</li>
+                        <li><strong>MAE/RMSE</strong>: Measure average prediction error in actual price units.</li>
+                    </ul>
+                </div>
+            </div>
+            {% else %}
+            <!-- Deployment Metrics (100% training data) -->
+            <div class="col-md-12">
+                <div class="p-3 border rounded bg-white" style="border-left: 4px solid #2196F3 !important;">
+                    <h6 class="mb-2">
+                        <span class="badge bg-primary">Deployment Mode (In-Sample Metrics)</span>
+                    </h6>
+                    <p class="small text-muted mb-2">Trained on 100% of database - no hold-out test set</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
-    <div class="col-md-6">
-        {% comment %} <div class="p-3 border rounded bg-light">
-            <h6 class="text-muted mb-1">BIC (Bayesian Information Criterion)</h6>
-            <h4 class="mb-0">{{ metrics.bic|floatformat:2 }}</h4>
-            <small class="text-secondary">Penalizes overfitting more strictly than AIC.</small>
-        </div> {% endcomment %}
+</div>
+{% endif %}
+
+{% if comparison_rows %}
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 text-primary"><i class="fas fa-table me-2"></i> Actual vs Predicted (Test Set)</h5>
+    </div>
+    <div class="card-body p-0">
+        <div style="max-height: 320px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th style="width: 10%;">#</th>
+                        <th style="width: 25%;">Actual Price</th>
+                        <th style="width: 25%;">Predicted Price</th>
+                        <th style="width: 20%;">Error</th>
+                        <th style="width: 20%;">Error %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in comparison_rows %}
+                    <tr>
+                        <td>{{ row.index }}</td>
+                        <td>₱{{ row.actual|floatformat:2 }}</td>
+                        <td>₱{{ row.predicted|floatformat:2 }}</td>
+                        <td class="{% if row.error > 5 %}text-danger{% else %}text-success{% endif %}">
+                            {{ row.error|floatformat:2 }}
+                        </td>
+                        <td class="{% if row.error_pct > 10 %}text-danger{% elif row.error_pct > 5 %}text-warning{% else %}text-success{% endif %}">
+                            {{ row.error_pct|floatformat:2 }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+{% endif %}
+{% if raw_series_graph %}
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #2196F3;">
+    <div class="card-header bg-primary text-white py-3">
+        <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i> Step 1: Raw Time Series & Stationarity Check</h5>
+    </div>
+    <div class="card-body text-center bg-light">
+        <p class="text-muted">
+            Inspect the <strong>raw series</strong> for trends/seasonality, then decide your <strong>d</strong> value before looking at ACF/PACF.
+        </p>
+        <img src="data:image/png;base64,{{ raw_series_graph }}" class="img-fluid rounded" style="width: 100%; border: 1px solid #eee;">
+        <div class="mt-3 p-3 bg-light rounded text-start" style="font-size: 0.9em; border-left: 5px solid #2196F3;">
+            <strong>How to read this:</strong>
+            <ul class="mb-0">
+                <li><strong>Top plot (Raw):</strong> If the mean/variance changes over time → series is <span class="text-danger">non-stationary</span> → needs differencing.</li>
+                <li><strong>Bottom plot (Differenced):</strong> If the series looks flat/stable → differencing worked → use that <code>d</code> value.</li>
+                <li>Once you decide <code>d</code>, click <strong>Train & Evaluate</strong> to see ACF/PACF for choosing <code>p</code> and <code>q</code>.</li>
+            </ul>
+        </div>
     </div>
 </div>
-    {% endif %}
+{% endif %}
+{% if diagnostic_graph %}
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #607d8b; background: white;">
+    <div class="card-header bg-dark text-white py-3">
+        <h5 class="mb-0"><i class="fas fa-search me-2"></i> Model Parameter Identification (ACF & PACF)</h5>
+    </div>
+    <div class="card-body text-center w-full">
+        <p class="text-muted">
+            Use these plots to make an initial guess for <strong>p</strong> and <strong>q</strong>, 
+            then train several models with nearby (p,d,q) values and compare validation metrics.
+        </p>
+
+        <img src="data:image/png;base64,{{ diagnostic_graph }}" class="img-fluid rounded" style="width: 100%; max-height: 300px; border: 1px solid #eee;">
+
+        <div class="mt-3 p-3 bg-light rounded text-start" style="font-size: 0.9em; border-left: 5px solid #607d8b;">
+            <strong>How to Identify Parameters:</strong>
+            <ul class="mb-2">
+                <li><strong>AR (p):</strong> Look at <strong>PACF</strong>. The lag where it cuts off (enters blue zone) suggests <code>p</code>.</li>
+                <li><strong>MA (q):</strong> Look at <strong>ACF</strong>. The lag where it cuts off suggests <code>q</code>.</li>
+                <li><strong>Differencing (d):</strong> If ACF decays very slowly, try higher <code>d</code> values (1 or 2).</li>
+            </ul>
+            <div class="alert alert-success mb-0" style="font-size: 0.95em;">
+                <strong>💡 Best Practice:</strong> Try 3-5 different (p,d,q) combinations near your ACF/PACF suggestions. 
+                Compare their <strong>validation MAPE</strong> - pick the model with lowest validation error and reasonable test error.
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <style>
     .training-options {
@@ -177,6 +381,12 @@
         .training-options {
             grid-template-columns: 1fr 1fr;
         }
+    }
+
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
 </style>
 {% endblock %}

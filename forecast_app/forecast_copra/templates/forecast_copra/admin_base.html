@@ -1,255 +1,440 @@
 {% load static tailwind_tags %}
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>{% block title %}Admin Panel{% endblock %}</title>
 {% tailwind_css %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
+    :root {
+        --bg-base:        #f0f7f0;
+        --bg-surface:     #ffffff;
+        --bg-elevated:    #f4faf4;
+        --bg-hover:       #e8f5e8;
+        --border:         #e2ede2;
+        --border-active:  #4ade80;
+        --green-900:      #14532d;
+        --green-800:      #166534;
+        --green-700:      #15803d;
+        --green-600:      #16a34a;
+        --green-500:      #22c55e;
+        --green-400:      #4ade80;
+        --green-100:      #dcfce7;
+        --green-50:       #f0fdf4;
+        --text-primary:   #0f2d1a;
+        --text-secondary: #374a3a;
+        --text-muted:     #6b8a72;
+        --shadow-sm:      0 1px 3px rgba(0,0,0,0.07);
+        --sidebar-w:      245px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: #f5f5f5;
-        margin: 0;
-    }
-    nav a.active {
-    background: #4CAF50;
-    font-weight: bold;
-    }
-
-    /* CONTAINER */
-    .container {
-        margin: 0 auto;
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-
-    /* HEADER */
-    header {
-        background: linear-gradient(135deg, #4CAF50, #2E7D32);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-
+        font-family: 'DM Sans', sans-serif;
+        background: var(--bg-base);
+        color: var(--text-primary);
+        min-height: 100vh;
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10px;
+        overflow-x: hidden;
     }
 
-    header h1 {
-        margin: 0;
-        font-size: 1.6rem;
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background:
+            radial-gradient(ellipse 70% 50% at 0% 0%, rgba(34,197,94,0.07) 0%, transparent 55%),
+            radial-gradient(ellipse 50% 40% at 100% 100%, rgba(21,128,61,0.05) 0%, transparent 55%);
+        pointer-events: none;
+        z-index: 0;
     }
 
-    header p {
-        margin: 5px 0 0 0;
-        font-size: 14px;
-    }
-
-    /* USER INFO */
-    .user-info {
+    /* ══════════════════════════════
+       SIDEBAR
+    ══════════════════════════════ */
+    .sidebar {
+        width: var(--sidebar-w);
+        min-height: 100vh;
+        background: var(--green-800);
         display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
+        flex-direction: column;
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        z-index: 100;
+        transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+        box-shadow: 4px 0 20px rgba(0,0,0,0.1);
     }
 
-    .logout-btn {
-        background: #f44336;
-        color: white;
-        border: none;
-        padding: 8px 14px;
-        border-radius: 5px;
+    .sidebar::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255,255,255,0.07) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
+    /* Logo */
+    .sidebar-logo {
+        padding: 22px 20px 18px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        position: relative;
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; }
+
+    .brand-icon {
+        width: 36px; height: 36px;
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; flex-shrink: 0;
+    }
+
+    .brand-name {
+        font-size: 13.5px; font-weight: 700;
+        letter-spacing: 0.06em; color: #fff;
+        text-transform: uppercase; line-height: 1.2;
+    }
+
+    .brand-sub {
+        font-size: 10px; color: rgba(255,255,255,0.45);
+        font-family: 'DM Mono', monospace;
+        letter-spacing: 0.07em; margin-top: 2px;
+    }
+
+    /* User card */
+    .sidebar-user {
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        display: flex; align-items: center; gap: 10px;
+        position: relative;
+    }
+
+    .user-avatar {
+        width: 33px; height: 33px;
+        background: var(--green-500);
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; font-weight: 700; color: #fff;
+        flex-shrink: 0; text-transform: uppercase;
+    }
+
+    .user-name  { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.2; }
+    .user-role  { font-size: 10px; color: var(--green-400); font-family: 'DM Mono', monospace; letter-spacing: 0.05em; }
+
+    /* Nav */
+    .sidebar-nav {
+        flex: 1; padding: 10px;
+        display: flex; flex-direction: column; gap: 2px;
+        overflow-y: auto; position: relative;
+    }
+
+    .nav-section-label {
+        font-size: 10px; font-weight: 600;
+        letter-spacing: 0.12em; color: rgba(255,255,255,0.35);
+        text-transform: uppercase; padding: 12px 10px 5px;
+    }
+
+    .nav-link {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 12px; border-radius: 8px;
+        font-size: 13.5px; font-weight: 500;
+        color: rgba(255,255,255,0.65);
         text-decoration: none;
-        font-size: 14px;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
     }
 
-    .logout-btn:hover {
-        background: #d32f2f;
+    .nav-link:hover {
+        background: rgba(255,255,255,0.1);
+        color: #fff; border-color: rgba(255,255,255,0.15);
     }
 
-    /* NAVIGATION */
-    nav {
-        background: #333;
-        padding: 12px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+    .nav-link.active {
+        background: rgba(255,255,255,0.18);
+        color: #fff; border-color: rgba(255,255,255,0.3);
+        font-weight: 600;
     }
 
-    nav a {
-        color: white;
-        text-decoration: none;
-        padding: 8px 14px;
-        border-radius: 5px;
-        transition: background 0.3s;
-        font-size: 14px;
+    .nav-icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.6; transition: opacity 0.15s; }
+    .nav-link:hover .nav-icon,
+    .nav-link.active .nav-icon { opacity: 1; }
+
+    /* Logout */
+    .sidebar-footer { padding: 10px; border-top: 1px solid rgba(255,255,255,0.1); position: relative; }
+
+    .logout-link {
+        display: flex; align-items: center; gap: 10px;
+        padding: 9px 12px; border-radius: 8px;
+        font-size: 13.5px; font-weight: 500;
+        color: rgba(255,200,200,0.8);
+        text-decoration: none; transition: all 0.15s ease;
+        border: 1px solid transparent;
     }
 
-    nav a:hover {
-        background: #4CAF50;
+    .logout-link:hover {
+        background: rgba(220,38,38,0.2);
+        border-color: rgba(220,38,38,0.3);
+        color: #fca5a5;
     }
 
-    /* MESSAGES */
-    .messages {
-        margin: 10px 0;
+    /* ══════════════════════════════
+       MAIN
+    ══════════════════════════════ */
+    .layout-body {
+        flex: 1; margin-left: var(--sidebar-w);
+        display: flex; flex-direction: column;
+        min-height: 100vh; position: relative; z-index: 1;
     }
+
+    /* Topbar */
+    .topbar {
+        height: 58px;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 28px;
+        position: sticky; top: 0; z-index: 50;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+
+    .hamburger {
+        display: none;
+        flex-direction: column; justify-content: center;
+        gap: 5px; width: 36px; height: 36px;
+        background: var(--green-50);
+        border: 1px solid var(--border);
+        border-radius: 8px; padding: 8px; cursor: pointer;
+    }
+    .hamburger span {
+        display: block; width: 100%; height: 2px;
+        background: var(--green-700); border-radius: 2px; transition: all 0.25s ease;
+    }
+
+    .page-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+    .topbar-pill {
+        display: flex; align-items: center; gap: 6px;
+        padding: 6px 14px;
+        background: var(--green-50);
+        border: 1px solid var(--green-100);
+        border-radius: 20px;
+        font-size: 12px; font-weight: 500;
+        color: var(--green-700);
+        text-decoration: none; transition: all 0.15s;
+    }
+    .topbar-pill:hover { background: var(--green-100); border-color: var(--green-500); }
+
+    .topbar-pill .dot {
+        width: 6px; height: 6px;
+        background: var(--green-500); border-radius: 50%;
+        box-shadow: 0 0 6px var(--green-500);
+        animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%,100% { opacity:1; }
+        50%      { opacity:0.3; }
+    }
+
+    /* Content */
+    .content-area { flex:1; padding: 28px; }
+
+    /* Messages */
+    .messages { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
 
     .alert {
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        border-left: 5px solid;
+        padding: 12px 16px; border-radius: 10px;
+        font-size: 13.5px; display: flex; align-items: center; gap: 10px;
+        border: 1px solid; box-shadow: var(--shadow-sm);
+    }
+    .alert-success { background: var(--green-50);  color: var(--green-800); border-color: var(--green-100); }
+    .alert-error   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+    .alert-info    { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+    .alert-warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+
+    /* Overlay */
+    .sidebar-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.4); z-index: 99;
+        backdrop-filter: blur(2px);
     }
 
-    .alert-success {
-        background: #d4edda;
-        color: #155724;
-        border-left-color: #4CAF50;
-    }
-
-    .alert-error {
-        background: #f8d7da;
-        color: #721c24;
-        border-left-color: #f44336;
-    }
-
-    .alert-info {
-        background: #d1ecf1;
-        color: #0c5460;
-        border-left-color: #2196F3;
-    }
-
-    .alert-warning {
-        background: #fff3cd;
-        color: #856404;
-        border-left-color: #ff9800;
-    }
-
-    /* MAIN */
-    main {
-        min-height: 400px;
-        margin-bottom: 30px;
-    }
-
-    /* FOOTER */
-    footer {
-        margin-top: 40px;
-        text-align: center;
-        color: #666;
-        padding-top: 15px;
-        border-top: 1px solid #ddd;
-        font-size: 0.9em;
-    }
-
-    /* ------------------ */
-    /* MOBILE ADJUSTMENTS */
-    /* ------------------ */
+    /* ══════════════════════════════
+       MOBILE
+    ══════════════════════════════ */
     @media (max-width: 768px) {
-
-        .container {
-            padding: 12px;
-            border-radius: 0;
-        }
-
-        header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        header h1 {
-            font-size: 1.3rem;
-        }
-
-        nav {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        nav a {
-            display: block;
-            width: 100%;
-            text-align: left;
-        }
-
-        .user-info {
-            width: 100%;
-            justify-content: space-between;
-        }
+        .sidebar { transform: translateX(-100%); }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-overlay.open { display: block; }
+        .layout-body { margin-left: 0; }
+        .hamburger { display: flex; }
+        .content-area { padding: 16px; }
+        .topbar { padding: 0 16px; }
     }
 </style>
-
 </head>
 
 <body>
 
-<div class="container">
-<header>
-    <div>
-        <h1>🌴 Admin Panel - Copra Price Forecasting</h1>
-        <p>Model Training & Data Management</p>
+<!-- ── Sidebar ── -->
+<aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-logo">
+        <div class="brand">
+            <div>
+                <div class=" text-3xl text-gray-100">Admin Panel</div>
+            </div>
+        </div>
     </div>
 
-    <div class="user-info">
+    {% if user.is_authenticated %}
+    <div class="sidebar-user">
+        <div class="user-avatar">{{ user.username|slice:":1" }}</div>
+        <div>
+            <div class="user-name">{{ user.username }}</div>
+            <div class="user-role">Administrator</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <nav class="sidebar-nav">
         {% if user.is_authenticated %}
-            <span>Welcome, <strong>{{ user.username }}</strong></span>
-            <a href="{% url 'admin_logout' %}" class="logout-btn">Logout</a>
-        {% endif %}
-    </div>
-</header>
 
-{% if user.is_authenticated %}
-    <nav>
+        <div class="nav-section-label">Overview</div>
+
         <a href="{% url 'admin_dashboard' %}"
-        class="{% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
-        📊 Dashboard
+            class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z"/>
+            </svg>
+            Dashboard
         </a>
 
-        <a href="/admin/" target="_blank">📁 Manage Data</a>
+        <div class="nav-section-label">Data</div>
+
+        <a href="/admin/" target="_blank" class="nav-link">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16"/>
+            </svg>
+            Manage Data
+            <svg class="nav-icon ml-auto" style="width:11px;height:11px;opacity:0.4;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+        </a>
+
+        <div class="nav-section-label">Model</div>
 
         <a href="{% url 'train_model' %}"
-        class="{% if request.resolver_match.url_name == 'train_model' %}active{% endif %}">
-        Train Model
+            class="nav-link {% if request.resolver_match.url_name == 'train_model' %}active{% endif %}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            Train Model
         </a>
 
         <a href="{% url 'trained_models_view' %}"
-        class="{% if request.resolver_match.url_name == 'trained_models_view' %}active{% endif %}">
-        Trained Models
+            class="nav-link {% if request.resolver_match.url_name == 'trained_models_view' %}active{% endif %}">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+            </svg>
+            Trained Models
         </a>
 
-        <a href="{% url 'home' %}"
-        class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">
-        🌐 Public Site
+        <div class="nav-section-label">Site</div>
+
+        <a href="{% url 'home' %}" class="nav-link">
+            <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+            </svg>
+            Public Site
         </a>
+
+        {% endif %}
     </nav>
-{% endif %}
 
-{% if messages %}
-<div class="messages">
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message|safe }}
+    {% if user.is_authenticated %}
+    <div class="sidebar-footer">
+        <a href="{% url 'admin_logout' %}" class="logout-link">
+            <svg style="width:16px;height:16px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            Logout
+        </a>
+    </div>
+    {% endif %}
+
+</aside>
+
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ── Main body ── -->
+<div class="layout-body">
+
+    <header class="topbar">
+        <div class="topbar-left">
+            <button class="hamburger" onclick="openSidebar()" aria-label="Open menu">
+                <span></span><span></span><span></span>
+            </button>
+            <span class="page-title">{% block page_title %}{% endblock %}</span>
         </div>
-    {% endfor %}
-</div>
-{% endif %}
+        <div class="topbar-right">
+            <a href="{% url 'home' %}" class="topbar-pill" target="_blank">
+                <span class="dot"></span>
+                Public Site
+            </a>
+        </div>
+    </header>
 
-<main>
-    {% block content %}
-    {% endblock %}
-</main>
+    <main class="content-area">
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {% if message.tags == 'success' %}✅
+                {% elif message.tags == 'error' %}❌
+                {% elif message.tags == 'warning' %}⚠️
+                {% else %}ℹ️{% endif %}
+                {{ message|safe }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
 </div>
+
+<script>
+    function openSidebar() {
+        document.getElementById('sidebar').classList.add('open');
+        document.getElementById('sidebar-overlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+</script>
 
 </body>
 </html>

@@ -32,14 +32,14 @@ class ForecastForm(forms.Form):
     oil_price_trend = forms.DecimalField(
         label='Oil Price Trend',
         max_digits=10,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-control'})
+        decimal_places=3,  # Changed from 2 to 3
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001'})
     )
     peso_dollar_rate = forms.DecimalField(
         label='Peso-Dollar Rate',
         max_digits=10,
         decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-control'})
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
     )
     forecast_horizon = forms.IntegerField(
         label='Forecast Horizon (days)',

@@ -4,3 +4,4 @@ from django.apps import AppConfig
 class ForecastCopraConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'forecast_copra'
+    verbose_name = 'Forecast Copra' 

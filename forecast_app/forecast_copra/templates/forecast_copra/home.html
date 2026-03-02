@@ -1,9 +1,101 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
+<!-- ===================== FLOATING IFRAME MODALS ===================== -->
+
+<!-- Backdrop -->
+<div id="modal-backdrop"
+    onclick="closeAllModals()"
+    class="hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm transition-opacity duration-300">
+</div>
+
+<!-- Coconut Community Modal -->
+<div id="modal-coconut"
+    class="hidden fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+            w-4xl rounded-2xl overflow-hidden shadow-2xl
+           border border-white/10 flex flex-col"
+    style="height: 90vh;">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between px-5 py-3 bg-[#0f172a] border-b border-white/10 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-indigo-400"></div>
+            <span class="text-sm text-white font-semibold">coconutcommunity.org — Weekly Price Update</span>
+            <h1 class="text-xs text-indigo-500">Choose Philippines Coconut Oil Price (USD/MT)</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="https://coconutcommunity.org/page-statistics/weekly-price-update"
+               target="_blank"
+               class="text-[11px] text-indigo-400 hover:text-emerald-400 transition-colors font-medium">
+                Open in new tab ↗
+            </a>
+            <button type="button" onclick="closeModal('modal-coconut')"
+                class="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/20 text-slate-400 hover:text-white transition-all text-sm font-bold">
+                ✕
+            </button>
+        </div>
+    </div>
+    <!-- iframe -->
+    <iframe
+        src="https://coconutcommunity.org/page-statistics/weekly-price-update"
+        class="w-full flex-1 bg-white"
+        frameborder="0"
+        loading="lazy"
+        title="Coconut Community Weekly Price Update">
+    </iframe>
+    <!-- Modal Footer -->
+    <div class="px-5 py-2 bg-[#0f172a] border-t border-white/10 shrink-0">
+        <p class="text-[10px] text-slate-500 text-center">
+            ⚠️ If the preview is blank, the site may block embedding — use "Open in new tab" above.
+        </p>
+    </div>
+</div>
+
+<!-- BSP Modal -->
+<div id="modal-bsp"
+    class="hidden fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+        w-4xl rounded-2xl overflow-hidden shadow-2xl
+           border border-white/10 flex flex-col"
+    style="height: 80vh;">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between px-5 py-3 bg-[#0f172a] border-b border-white/10 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+            <span class="text-sm text-white font-semibold">BDO — PHP/USD Daily Exchange Rate</span>
+            <h1 class="text-xs text-green-500">Choose (US Dollar) Banks Buy Rate in PHP</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="https://www.bdo.com.ph/forex"
+               target="_blank"
+               class="text-[11px] text-emerald-400 hover:text-indigo-400 transition-colors font-medium">
+                Open in new tab ↗
+            </a>
+            <button type="button" onclick="closeModal('modal-bsp')"
+                class="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/20 text-slate-400 hover:text-white transition-all text-sm font-bold">
+                ✕
+            </button>
+        </div>
+    </div>
+    <!-- iframe -->
+    <iframe
+        src="https://www.bdo.com.ph/forex"
+        class="w-full flex-1 bg-white"
+        frameborder="0"
+        loading="lazy"
+        title="BSP PHP/USD Exchange Rate">
+    </iframe>
+    <!-- Modal Footer -->
+    <div class="px-5 py-2 bg-[#0f172a] border-t border-white/10 shrink-0">
+        <p class="text-[10px] text-slate-500 text-center">
+            ⚠️ If the preview is blank, the site may block embedding — use "Open in new tab" above.
+        </p>
+    </div>
+</div>
+
+<!-- ===================== END MODALS ===================== -->
+
 <header class="text-center mb-16 max-w-3xl mx-auto">
     <p class="text-slate-400 text-lg leading-relaxed">
-        Empowering farmers in Surigao del Sur with ARIMAX-powered market intelligence. 
         Enter current indicators below to generate your outlook.
     </p>
 </header>
@@ -12,56 +104,113 @@
     <div class="lg:col-span-3 glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden">
         <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 blur-3xl rounded-full"></div>
         
-        <div class="flex items-center justify-between mb-10">
-            <h2 class="text-2xl font-bold text-white">Forecasting Engine</h2>
-            {% if  active_model %}
-                <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-xs font-bold rounded-full border border-emerald-500/20">
-               {{ active_model.name }}
-                </span>
-            {% endif %}
-        </div>
-
         <form method="post" class="space-y-8">
             {% csrf_token %}
-            <div class="grid md:grid-cols-2 gap-8">
-                <div class="space-y-2 group">
-                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest group-focus-within:text-indigo-400 transition-colors">Oil Price Trend (kg)</label>
-                    <input type="number" step="0.001" name="oil_price_trend" required placeholder="e.g. 120"
-                        class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-slate-600 outline-none transition-all input-gradient">
-                </div>
-              <div class="space-y-2 group">
+            
+            <!-- Step 1: Global Price Input -->
+            <div class="space-y-2 group">
                 <div class="flex justify-between items-center">
-                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">PHP/USD Rate</label>
-                    
-                    <a href="https://www.bsp.gov.ph/statistics/external/day99_data.aspx" 
-                    target="_blank" 
-                    class="text-[10px] text-indigo-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium">
-                        Check from www.bsp.gov.ph
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                        </svg>
-                    </a>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Coconut Oil Price (USD/MT)</label>
+                    <div class="flex items-center gap-2">
+                        <a href="https://coconutcommunity.org/page-statistics/weekly-price-update"
+                           target="_blank"
+                           class="text-[10px] text-indigo-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium">
+                            coconutcommunity.org
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                        </a>
+                        <button type="button" onclick="openModal('modal-coconut')"
+                            class="text-[10px] px-2 py-1 bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/40 rounded-lg transition-all font-bold flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                            Preview
+                        </button>
+                    </div>
                 </div>
-                
-                <input type="number" step="0.01" name="peso_dollar_rate" required placeholder="e.g..56.50"
-                    class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-500/50 input-gradient">
-            </div>
+                <input type="number" step="0.01" id="oil_price_usd_mt" min="1000" max="4000" placeholder="e.g. 1200.00"
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-slate-600 outline-none transition-all input-gradient focus:border-indigo-500/50">
+                <p class="text-xs text-slate-500 mt-1">Philippines (Domestic, Millgate Price)</p>
             </div>
 
+            <!-- Step 2: Exchange Rate Input -->
+            <div class="space-y-2 group">
+                <div class="flex justify-between items-center">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">PHP/USD Exchange Rate</label>
+                    <div class="flex items-center gap-2">
+                        <a href="https://www.bdo.com.ph/forex"
+                           target="_blank"
+                           class="text-[10px] text-indigo-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium">
+                            Check BDO
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                            </svg>
+                        </a>
+                        <button type="button" onclick="openModal('modal-bsp')"
+                            class="text-[10px] px-2 py-1 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/40 rounded-lg transition-all font-bold flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                            Preview
+                        </button>
+                    </div>
+                </div>
+                <input type="number" step="0.01" min="50" max="100" name="peso_dollar_rate" id="peso_dollar_rate" value="{{ latest_peso }}" placeholder="e.g. 55.00"
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-slate-600 outline-none transition-all focus:border-emerald-500/50 input-gradient"
+                    onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
+                <p class="text-xs text-slate-500 mt-1">Latest PHP to USD exchange rate</p>
+            </div>
+
+            <!-- Calculate Button -->
+            <div class="flex justify-center">
+                <button type="button" id="calculateBtn"
+                    class="px-8 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold rounded-xl hover:shadow-lg transition-all flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
+                    <span>Calculate (PHP/KG)</span>
+                </button>
+            </div>
+
+            <!-- Step 3: Calculated Result -->
+            <div class="space-y-2 group">
+                <label class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Calculated Oil Price (PHP/KG)</label>
+                <div class="relative">
+                    <input type="number" value="{{ latest_oil }}" step="0.001" name="oil_price_trend" id="oil_price_php_kg" required readonly
+                        class="w-full bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-5 py-5 text-emerald-300 font-bold text-xl placeholder-slate-600 outline-none cursor-not-allowed">
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-400 text-xs font-bold">
+                        PHP
+                    </div>
+                </div>
+                <div id="calculation-breakdown" class="hidden mt-3 p-4 bg-white/5 rounded-xl border border-white/10">
+                    <p class="text-xs text-slate-400 font-bold mb-2">Calculation Breakdown:</p>
+                    <div class="space-y-1 text-xs text-slate-300">
+                        <p>• USD/MT: <span id="breakdown-usd-mt" class="text-white font-bold">-</span></p>
+                        <p>• Exchange Rate: <span id="breakdown-rate" class="text-white font-bold">-</span></p>
+                        <p>• PHP/MT: <span id="breakdown-php-mt" class="text-white font-bold">-</span></p>
+                        <p>• PHP/KG: <span id="breakdown-php-kg" class="text-emerald-400 font-bold">-</span> (÷ 1000)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Forecast Horizon -->
             <div class="space-y-2">
                 <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Prediction Horizon</label>
                 <select name="forecast_horizon" class="w-full bg-[#0f172a] border border-white/10 rounded-2xl px-5 py-4 text-white outline-none cursor-pointer focus:border-indigo-500 transition-all">
-                    <option value="3" selected>3-Days/option>
-                    <option value="5">5-Days Extended View</option>
-                    <option value="7">7-Days Comprehensive View</option>
-                    <option value="14">14-Day Strategic View</option>
+                    <option value="3" selected>3-Days</option>
+                    <option value="5">5-Days</option>
+                    <option value="7">7-Days</option>
+                    <option value="14">14-Day</option>
                 </select>
             </div>
 
-            <button type="submit" class="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-3">
+            <button type="submit" id="submitBtn" disabled
+                class="w-full py-5 bg-gradient-to-r from-slate-600 to-slate-500 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-3 cursor-not-allowed opacity-50">
                 <span>Run Simulation</span>
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
             </button>
+            <p class="text-center text-xs text-slate-500">Please calculate local price before running simulation</p>
         </form>
     </div>
 
@@ -73,7 +222,7 @@
                 <div class="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors group">
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-xs text-slate-500 mb-1">{{ forecast.created_at|date:"M d, f A" }}</p>
+                            <p class="text-xs text-slate-500 mb-1">{{ forecast.created_at|date:"M d, g:i A" }}</p>
                             <p class="text-xl font-bold text-emerald-400 group-hover:scale-105 transition-transform origin-left">₱{{ forecast.price_predicted|floatformat:2 }}</p>
                         </div>
                         <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded font-bold uppercase">{{ forecast.forecast_horizon }}Days</span>
@@ -86,4 +235,85 @@
         </div>
     </div>
 </div>
+
+<script>
+// ── Floating Modal helpers ─────────────────────────────────
+function openModal(id) {
+    document.getElementById('modal-backdrop').classList.remove('hidden');
+    document.getElementById(id).classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // lock background scroll
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    const anyOpen = ['modal-coconut', 'modal-bsp']
+        .some(m => !document.getElementById(m).classList.contains('hidden'));
+    if (!anyOpen) {
+        document.getElementById('modal-backdrop').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
+
+function closeAllModals() {
+    ['modal-coconut', 'modal-bsp'].forEach(id =>
+        document.getElementById(id).classList.add('hidden')
+    );
+    document.getElementById('modal-backdrop').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAllModals();
+});
+
+// ── Calculate logic ────────────────────────────────────────
+document.getElementById('calculateBtn').addEventListener('click', function () {
+    const usdPerMT = parseFloat(document.getElementById('oil_price_usd_mt').value);
+    const exchangeRate = parseFloat(document.getElementById('peso_dollar_rate').value);
+
+    if (isNaN(usdPerMT) || usdPerMT <= 0) {
+        alert('Please enter a valid global oil price (USD/MT)');
+        document.getElementById('oil_price_usd_mt').focus();
+        return;
+    }
+    if (isNaN(exchangeRate) || exchangeRate <= 0) {
+        alert('Please enter a valid PHP/USD exchange rate');
+        document.getElementById('peso_dollar_rate').focus();
+        return;
+    }
+
+    const phpPerMT = usdPerMT * exchangeRate;
+    const phpPerKG = phpPerMT / 1000;
+
+    document.getElementById('oil_price_php_kg').value = phpPerKG.toFixed(2);
+    document.getElementById('breakdown-usd-mt').textContent = '$' + usdPerMT.toFixed(2);
+    document.getElementById('breakdown-rate').textContent = '₱' + exchangeRate.toFixed(2);
+    document.getElementById('breakdown-php-mt').textContent = '₱' + phpPerMT.toFixed(2);
+    document.getElementById('breakdown-php-kg').textContent = '₱' + phpPerKG.toFixed(2);
+    document.getElementById('calculation-breakdown').classList.remove('hidden');
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('from-slate-600', 'to-slate-500', 'cursor-not-allowed', 'opacity-50');
+    submitBtn.classList.add('from-indigo-600', 'to-indigo-500', 'hover:shadow-xl');
+    submitBtn.nextElementSibling.textContent = 'Ready to simulate!';
+    submitBtn.nextElementSibling.classList.replace('text-slate-500', 'text-emerald-400');
+
+    const resultInput = document.getElementById('oil_price_php_kg');
+    resultInput.classList.add('animate-pulse');
+    setTimeout(() => resultInput.classList.remove('animate-pulse'), 1000);
+});
+
+function autoCalculate() {
+    const usdPerMT = parseFloat(document.getElementById('oil_price_usd_mt').value);
+    const exchangeRate = parseFloat(document.getElementById('peso_dollar_rate').value);
+    if (!isNaN(usdPerMT) && usdPerMT > 0 && !isNaN(exchangeRate) && exchangeRate > 0) {
+        document.getElementById('oil_price_php_kg').value = ((usdPerMT * exchangeRate) / 1000).toFixed(2);
+    }
+}
+
+document.getElementById('oil_price_usd_mt').addEventListener('input', autoCalculate);
+document.getElementById('peso_dollar_rate').addEventListener('input', autoCalculate);
+</script>
 {% endblock %}

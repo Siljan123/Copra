@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CopraForecaster | Analytics{% endblock %}</title>
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% tailwind_css %}
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -27,55 +27,162 @@
             50% { transform: translateY(-10px); }
         }
         .animate-float { animation: float 6s ease-in-out infinite; }
+
+        /* Mobile menu slide-down animation */
+        #mobile-menu {
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        #mobile-menu.open {
+            max-height: 400px;
+            opacity: 1;
+        }
+
+        /* Hamburger bar animation */
+        .bar { transition: all 0.3s ease; transform-origin: center; }
+        #hamburger.open .bar-top    { transform: translateY(8px) rotate(45deg); }
+        #hamburger.open .bar-mid    { opacity: 0; transform: scaleX(0); }
+        #hamburger.open .bar-bot    { transform: translateY(-8px) rotate(-45deg); }
+
+        @media (max-width: 768px) {
+            .chart-container  { height: 300px; }
+            .info-grid, .stats-summary { grid-template-columns: 1fr; }
+            .forecast-table   { display: block; overflow-x: auto; white-space: nowrap; }
+            .price-display    { font-size: 2.5rem; }
+        }
     </style>
 </head>
-<body class="min-h-screen bg-[#0f172a] text-slate-50 antialiased">
+<body class="min-h-screen w-full bg-[#0f172a] text-slate-50 antialiased">
+
+    <!-- Background gradients -->
     <div class="fixed inset-0 -z-10">
         <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.15),transparent_50%)]"></div>
         <div class="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.1),transparent_50%)]"></div>
     </div>
 
-    <div class="max-w-6xl mx-auto px-4 py-8 relative">
-        <nav class="flex justify-between items-center mb-12">
-            <div class="flex items-center space-x-2">
-                <span class="text-3xl">🌴</span>
-                <span class="text-xl font-bold tracking-tight premium-text uppercase">CopraForecaster</span>
-            </div>
-            <div class="flex gap-6 items-center">
-                <a href="{% url 'home' %}"
-                class="text-sm font-medium transition-colors
-                {% if request.path == '/' %}
-                    text-white
-                {% else %}
-                    text-slate-400 hover:text-white
-                {% endif %}">
-                Request forecast
-                </a>
+    <div class="max-w-7xl mx-auto px-4 py-8 relative">
 
-                <a href="{% url 'recent_forecasts' %}"
-                class="text-sm font-medium transition-colors
-                {% if request.path == '/recent-forecasts/' %}
-                    text-white
-                {% else %}
-                    text-slate-400 hover:text-white
-                {% endif %}">
-                History
-                </a>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'admin_dashboard' %}" class="glass-card py-2 px-6 rounded-full text-sm font-semibold hover:bg-white/10 transition-all">Admin Portal 🔐</a>
-                   {%else%}
-                    <a href="{% url 'admin_login' %}" class="glass-card py-2 px-6 rounded-full text-sm font-semibold hover:bg-white/10 transition-all">Admin Login</a>
-                {% endif %}
+        <!-- ── NAVBAR ── -->
+        <nav class="mb-12">
+            <div class="flex justify-between items-center">
+
+                <!-- Logo -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl font-bold tracking-tight premium-text uppercase">CopraForecaster</span>
+                </div>
+
+                <!-- Desktop links -->
+                <div class="hidden md:flex gap-6 items-center">
+                    <a href="{% url 'home' %}"
+                        class="text-sm font-medium transition-colors
+                        {% if request.path == '/' %}text-white{% else %}text-slate-400 hover:text-white{% endif %}">
+                        Request forecast
+                    </a>
+                    <a href="{% url 'recent_forecasts' %}"
+                        class="text-sm font-medium transition-colors
+                        {% if request.path == '/recent-forecasts/' %}text-white{% else %}text-slate-400 hover:text-white{% endif %}">
+                        History
+                    </a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'admin_dashboard' %}" class="glass-card py-2 px-6 rounded-full text-sm font-semibold hover:bg-white/10 transition-all">
+                            Admin Portal 🔐
+                        </a>
+                    {% else %}
+                        <a href="{% url 'admin_login' %}" class="glass-card py-2 px-6 rounded-full text-sm font-semibold hover:bg-white/10 transition-all">
+                            Admin Login
+                        </a>
+                    {% endif %}
+                </div>
+
+                <!-- Hamburger button (mobile only) -->
+                <button id="hamburger"
+                    onclick="toggleMenu()"
+                    class="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded-xl glass-card hover:bg-white/10 transition-all gap-[6px] p-2"
+                    aria-label="Toggle menu">
+                    <span class="bar bar-top block w-full h-[2px] bg-white rounded-full"></span>
+                    <span class="bar bar-mid block w-full h-[2px] bg-white rounded-full"></span>
+                    <span class="bar bar-bot block w-full h-[2px] bg-white rounded-full"></span>
+                </button>
+            </div>
+
+            <!-- Mobile dropdown menu -->
+            <div id="mobile-menu" class="md:hidden">
+                <div class="mt-4 glass-card rounded-2xl p-4 flex flex-col gap-1">
+                    <a href="{% url 'home' %}"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
+                        {% if request.path == '/' %}bg-white/10 text-white{% else %}text-slate-400 hover:bg-white/5 hover:text-white{% endif %}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        Request Forecast
+                    </a>
+
+                    <a href="{% url 'recent_forecasts' %}"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
+                        {% if request.path == '/recent-forecasts/' %}bg-white/10 text-white{% else %}text-slate-400 hover:bg-white/5 hover:text-white{% endif %}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        History
+                    </a>
+
+                    <div class="border-t border-white/10 my-1"></div>
+
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'admin_dashboard' %}"
+                            class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-all">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                            </svg>
+                            Admin Portal 🔐
+                        </a>
+                    {% else %}
+                        <a href="{% url 'admin_login' %}"
+                            class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                            </svg>
+                            Admin Login
+                        </a>
+                    {% endif %}
+                </div>
             </div>
         </nav>
+        <!-- ── END NAVBAR ── -->
 
         <main>
             {% block content %}{% endblock %}
         </main>
-
-        <footer class="mt-20 pt-8 border-t border-white/5 text-center text-slate-500 text-sm">
-            <p>© 2024 Copra Price Analytics • Built for Surigao del Sur Farmers</p>
-        </footer>
     </div>
+
+    <script>
+        function toggleMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const btn  = document.getElementById('hamburger');
+            menu.classList.toggle('open');
+            btn.classList.toggle('open');
+        }
+
+        // Close menu when a link inside it is clicked
+        document.querySelectorAll('#mobile-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                document.getElementById('mobile-menu').classList.remove('open');
+                document.getElementById('hamburger').classList.remove('open');
+            });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function (e) {
+            const menu = document.getElementById('mobile-menu');
+            const btn  = document.getElementById('hamburger');
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('open');
+                btn.classList.remove('open');
+            }
+        });
+    </script>
+
 </body>
 </html>

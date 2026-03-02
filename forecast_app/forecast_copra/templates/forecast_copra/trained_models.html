@@ -144,16 +144,104 @@
     <span style="color: #64748b;">Total Models: {{ models.paginator.count }}</span>
 </div>
 
+{% if models_for_chart %}
+<div style="margin-bottom: 30px; background: white; border-radius: 12px; height:500px; padding: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e1e8ed;">
+    <h3 style="margin-bottom: 10px;">AIC Comparison Across Models</h3>
+    <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">
+        <br/>
+        {% comment %} <small style="color:#9ca3af;">
+            Note: Deployment models trained on 100% DB data (names starting with <code>db_model</code>) are excluded here,
+            because their AIC is computed on a different sample size and is not directly comparable.
+        </small> {% endcomment %}
+    </p>
+    <div style="height: 400px; max-height: 500px;">
+        <canvas id="aicChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function() {
+        const ctx = document.getElementById('aicChart').getContext('2d');
+        const labels = [
+            {% for model in models_for_chart %}
+            "{{ model.name }} ({{ model.p }},{{ model.d }},{{ model.q }})"{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        const aicValues = [
+            {% for model in models_for_chart %}
+            {{ model.aic }}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'AIC (lower is better)',
+                    data: aicValues,
+                    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                    borderColor: 'rgba(37, 99, 235, 1)',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' AIC: ' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    },
+                    title: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            font: { size: 11 },
+                        },
+                        title: {
+                            display: true,
+                            text: 'AIC',
+                            font: { size: 12, weight: 'bold' }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: { size: 10 },
+                            maxRotation: 45,
+                            minRotation: 45,
+                        }
+                    }
+                }
+            }
+        });
+    })();
+</script>
+{% endif %}
+
 {% if models %}
 <div class="table-wrapper">
     <table>
         <thead>
             <tr>
-                <th style="width: 25%;">Model Name</th>
-                <th class="text-center">Accuracy</th>
+                <th style="width: 20%;">Model Name</th>
+                <th class="text-center">Source</th>
                 <th class="text-center">Order (p,d,q)</th>
+                <th class="text-center">AIC</th>
+                <th class="text-center">MAPE</th>
+                <th class="text-center">MAE</th>
+                <th class="text-center">RMSE</th>
                 <th>Training Date</th>
-                <th>Source</th>
                 <th class="text-center">Status</th>
                 <th class="text-center">Actions</th>
             </tr>
@@ -167,10 +255,10 @@
                 </td>
 
                 <td class="text-center">
-                    {% if model.accuracy %}
-                    <span style="font-family: monospace; font-size: 1.1em;">{{ model.accuracy }}%</span>
+                    {% if model.name|slice:":8" == "db_model" %}
+                        <span class="badge badge-inactive">Database</span>
                     {% else %}
-                    <span style="color: #cbd5e1;">—</span>
+                        <span class="badge badge-active">Excel</span>
                     {% endif %}
                 </td>
 
@@ -180,17 +268,25 @@
                     </code>
                 </td>
 
+                <td class="text-center metric-cell">
+                    {{ model.aic|default:"—" }}
+                </td>
+
+                <td class="text-center metric-cell">
+                    {% if model.mape %}{{ model.mape }}%{% else %}—{% endif %}
+                </td>
+
+                <td class="text-center metric-cell">
+                    {{ model.mae|default:"—" }}
+                </td>
+
+                <td class="text-center metric-cell">
+                    {{ model.rmse|default:"—" }}
+                </td>
+
                 <td style="font-size: 0.9em; color: #64748b;">
                     {{ model.training_date|date:"M d, Y" }}<br>
                     <small>{{ model.training_date|date:"H:i" }}</small>
-                </td>
-
-                <td>
-                    {% if "model" in model.name.lower %}
-                    <span title="Excel Import">📁 Excel</span>
-                    {% elif "db" in model.name.lower %}
-                    <span title="Database Source">💾 Database</span>
-                    {% endif %}
                 </td>
 
                 <td class="text-center">
@@ -232,7 +328,6 @@
         </tbody>
     </table>
 </div>
-
 {% if models.has_other_pages %}
 <div class="pagination">
     {% if models.has_previous %}

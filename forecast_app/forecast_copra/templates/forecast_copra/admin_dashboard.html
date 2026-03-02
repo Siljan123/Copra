@@ -107,7 +107,7 @@
     }
 </style>
 
-<h2 class="dashboard-title">🌴 Admin Dashboard</h2>
+<h2 class="dashboard-title">Dashboard</h2>
 
 <div class="stats-grid">
     <div class="stat-card">
@@ -134,7 +134,6 @@
         <p class="stat-description">
             {% if active_model %}
                 {{ active_model.name }}<br>
-                ({{ active_model.accuracy }}% accuracy)
             {% else %}
                 No active model
             {% endif %}
