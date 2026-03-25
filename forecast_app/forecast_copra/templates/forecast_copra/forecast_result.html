@@ -9,14 +9,6 @@
         <div class="price-display">₱{{ predicted_price|floatformat:2 }}</div>
 
         <div class="info-grid">
-              <div class="info-item">
-                {% if latest_farmgate_price %}
-                    <div class="info-label">Latest Farmgate Price uploaded - Source: pca.gov.ph</div>
-                    <div class="info-value">₱{{ latest_farmgate_price }}/kg 
-                      (as of {{ latest_farmgate_date }})
-                    </div>
-                {% endif %}
-            </div>
             <div class="info-item">
                 <div class="info-label">Coconut Oil Price</div>
                 <div class="info-value">{{ oil_price }}</div>

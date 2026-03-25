@@ -7,9 +7,9 @@ urlpatterns = [
     # Public routes
     path('', views.home, name='home'),
     path('recent-forecasts/', views.recent_forecasts, name='recent_forecasts'),
-    path('api/forecast/', views.get_forecast_api, name='forecast_api'),
+    # path('api/forecast/', views.get_forecast_api, name='forecast_api'),
     path("__reload__/", include("django_browser_reload.urls")),
-    
+    path("historical/trend/", views.historical_trend, name="historical_trend"),
     # Admin routes
     path('admin-panel/login/', views.admin_login, name='admin_login'),
     path('admin-panel/logout/', views.admin_logout, name='admin_logout'),

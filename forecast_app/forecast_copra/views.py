@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.core.files.storage import FileSystemStorage
@@ -21,6 +22,12 @@ import base64
 import io
 import os
 from datetime import date, timedelta
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from django.shortcuts import render
+from django.contrib import messages
+from .models import TrainingData, ForecastLog
+import pdfplumber
 import json
 from io import BytesIO
 from selenium import webdriver
@@ -34,275 +41,299 @@ from datetime import date, datetime
 import re
 import requests
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
-import re
 from .forms import ExcelUploadForm, LoginForm, TrainingDataForm, ForecastForm
 from .models import TrainingData, TrainedModel, ForecastLog, ExcelUpload
 from .utils.arimax_model import ARIMAXModel
 
 
-
-# The Scraping Helper
+# ── Shared headers ────────────────────────────────────────────────────────────
+_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                  'AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
+ 
+ 
+# ==============================================================================
+# SCRAPER 1: ICC Coconut Oil Price (PDF — no Selenium, no browser)
+# PDF URL pattern: coconutcommunity.org/files/document/wpu{YEAR}-{MONTH:02d}.pdf
+# Contains: "Philippines (Domestic, Millgate Price)" — exact data you need
+# Speed: ~1–2s (was ~15–20s with Selenium)
+# ==============================================================================
 def get_live_coconut_oil_price():
-    """Fetches real-time CNO price using dynamic Selenium scraping"""
-
+    """
+    Downloads ICC weekly price PDF directly.
+    Tries current month first, then falls back up to 4 months.
+    Returns: { price (USD/MT), date (str), change (str) }
+ 
+    FIX: Strips commas before regex so "2,433" is read as 2433 not 433.
+    """
     data = {
         "price":  None,
         "date":   date.today().strftime('%b %d, %Y'),
         "change": "0.00"
     }
-
-    try:
-        # ── Setup headless Chrome ─────────────────────────────────────────
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--window-size=1920,1080')
-        options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                             'AppleWebKit/537.36 (KHTML, like Gecko) '
-                             'Chrome/120.0.0.0 Safari/537.36')
-
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options
-        )
-
-        driver.get("https://coconutcommunity.org/page-statistics/weekly-price-update")
-
-        # ── Wait until table/content is visible ───────────────────────────
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
-
-        import time
-        time.sleep(3)  # extra wait for JS to finish rendering
-
-        page_source = driver.page_source
-
-        # ── DEBUG: print raw snippet around Philippines row ───────────────
-        snippet = re.search(
-            r'Philippines \(Domestic, Millgate Price\).{0,300}',
-            page_source, re.DOTALL
-        )
-        if snippet:
-            print(f"[SCRAPER DEBUG] HTML snippet:\n{snippet.group(0)}")
-        else:
-            print("[SCRAPER DEBUG] Philippines row NOT found in page source")
-
-        # ── Extract date from page ────────────────────────────────────────
-        date_match = re.search(r'(\d{1,2}\s+\w+\s+\d{4})', page_source)
-        if date_match:
-            try:
-                parsed = datetime.strptime(date_match.group(1), '%d %B %Y')
-                data['date'] = parsed.strftime('%b %d, %Y')
-            except:
-                data['date'] = date_match.group(1)
-
-        # ── Strategy 1: Exact XPath text match ───────────────────────────
+ 
+    today = date.today()
+ 
+    # Build list of months to try: current → up to 4 months back
+    months_to_try = []
+    for i in range(5):
+        year  = today.year
+        month = today.month - i
+        if month <= 0:
+            month += 12
+            year  -= 1
+        months_to_try.append((year, month))
+ 
+    for year, month in months_to_try:
+        url = f"https://coconutcommunity.org/files/document/wpu{year}-{month:02d}.pdf"
+        print(f"[ICC PDF] Trying: {url}")
+ 
         try:
-            elements = driver.find_elements(By.XPATH,
-                "//*[normalize-space(text())='Philippines (Domestic, Millgate Price)']"
-            )
-            if elements:
-                parent = elements[0].find_element(By.XPATH, '..')
-                all_children = parent.find_elements(By.XPATH, './*')
+            response = requests.get(url, headers=_HEADERS, timeout=12)
+ 
+            if response.status_code != 200:
+                print(f"[ICC PDF] HTTP {response.status_code} — trying previous month")
+                continue
+ 
+            # ── Extract full text from all PDF pages ──────────────────────
+            full_text = ""
+            with pdfplumber.open(io.BytesIO(response.content)) as pdf:
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        full_text += text + "\n"
+ 
+            if not full_text.strip():
+                print("[ICC PDF] Empty PDF — skipping")
+                continue
+ 
+            print(f"[ICC PDF] Text snippet:\n{full_text[:600]}")
+ 
+            # ── Find the Philippines (Domestic, Millgate Price) row ───────
+            lines = full_text.split('\n')
+ 
+            for i, line in enumerate(lines):
+                if 'Philippines' in line and ('Domestic' in line or 'Millgate' in line):
+                    print(f"[ICC PDF] Found target line [{i}]: {line}")
 
-                # DEBUG: print all siblings
-                print(f"[SCRAPER DEBUG] Siblings found: {[c.text.strip() for c in all_children]}")
+                    # ── Only use THIS line, not next lines ────────────────────────
+                    # Joining next lines pulls in OTHER product prices (e.g. 682)
 
-                for i, child in enumerate(all_children):
-                    if 'Philippines (Domestic, Millgate Price)' in child.text.strip():
-                        print(f"[SCRAPER] Target row at index {i}")
+                    # Step 1: remove "2 ,433" style spaces before comma → "2433"
+                    line_clean = re.sub(r'(\d)\s*,\s*(\d)', r'\1\2', line)
+                    # Step 2: remove any remaining commas
+                    line_clean = line_clean.replace(',', '')
 
-                        # Try next siblings one by one to find the price
-                        for j in range(i + 1, min(i + 5, len(all_children))):
-                            raw = all_children[j].text.replace(',', '').replace('USD', '').strip()
-                            print(f"[SCRAPER DEBUG] Checking sibling [{j}]: '{raw}'")
-                            try:
-                                price_val = float(raw.split()[0])  # take first number only
-                                if 500 < price_val < 10000:
-                                    data['price'] = price_val
-                                    print(f"[SCRAPER] Strategy 1 success: {price_val}")
-                                    # Change is the sibling after price
-                                    if j + 1 < len(all_children):
-                                        data['change'] = all_children[j + 1].text.strip()
-                                    break
-                            except (ValueError, IndexError):
-                                continue
-                        break
+                    print(f"[ICC PDF] Cleaned line: {line_clean}")
 
+                    # Match 4+ digit numbers only (2433, 2796 etc — avoids small stray numbers)
+                    raw_numbers = re.findall(r'\b(\d{4,5}(?:\.\d+)?)\b', line_clean)
+
+                    prices = []
+                    for raw in raw_numbers:
+                        try:
+                            val = float(raw)
+                            if 500 < val < 8000:
+                                prices.append(val)
+                        except ValueError:
+                            continue
+
+                    print(f"[ICC PDF] Prices found: {prices}")
+ 
+                    if not prices:
+                        continue
+ 
+                    # Latest price = last value in the row (most recent week)
+                    latest_price = prices[-1]
+ 
+                    # Compute week-over-week change
+                    if len(prices) >= 2:
+                        prev_price = prices[-2]
+                        change_val = latest_price - prev_price
+                        data['change'] = f"{'+' if change_val >= 0 else ''}{change_val:.2f}"
+                    else:
+                        data['change'] = "0.00"
+ 
+                    data['price'] = latest_price
+                    data['date']  = date(year, month, 1).strftime('%b %Y')
+ 
+                    print(f"[ICC PDF] Success: price={latest_price}, change={data['change']}, date={data['date']}")
+                    return data  # Found — exit immediately
+ 
+            print(f"[ICC PDF] Philippines row not found in {url}")
+ 
+        except requests.exceptions.Timeout:
+            print(f"[ICC PDF] Timeout on {url}")
         except Exception as e:
-            print(f"[SCRAPER] Strategy 1 failed: {e}")
-
-        # ── Strategy 2: Table row search ──────────────────────────────────
-        if not data['price']:
-            try:
-                rows = driver.find_elements(By.TAG_NAME, 'tr')
-                for row in rows:
-                    if 'Philippines' in row.text and 'Domestic' in row.text and 'Millgate' in row.text:
-                        cells = row.find_elements(By.TAG_NAME, 'td')
-                        print(f"[SCRAPER DEBUG] Table row cells: {[c.text for c in cells]}")
-                        for cell in cells:
-                            raw = cell.text.replace(',', '').replace('USD', '').strip()
-                            try:
-                                price_val = float(raw.split()[0])
-                                if 500 < price_val < 10000:
-                                    data['price'] = price_val
-                                    print(f"[SCRAPER] Strategy 2 success: {price_val}")
-                                    break
-                            except (ValueError, IndexError):
-                                continue
-                        break
-            except Exception as e:
-                print(f"[SCRAPER] Strategy 2 failed: {e}")
-
-        # ── Strategy 3: Regex on raw page source ──────────────────────────
-        if not data['price']:
-            match = re.search(
-                r'Philippines \(Domestic, Millgate Price\)[^\d]*([\d,]+)\s*USD',
-                page_source, re.DOTALL
-            )
-            if match:
-                try:
-                    price_val = float(match.group(1).replace(',', ''))
-                    if 500 < price_val < 10000:
-                        data['price'] = price_val
-                        print(f"[SCRAPER] Strategy 3 success: {price_val}")
-                except ValueError:
-                    pass
-
-        driver.quit()
-
-        # ── If all strategies fail, price stays None ──────────────────────
-        if not data['price']:
-            print("[SCRAPER] All strategies failed — price unavailable")
-
-        print(f"[SCRAPER] Final result: {data}")
-
-    except Exception as e:
-        print(f"[SCRAPER] Fatal error: {e}")
-
+            print(f"[ICC PDF] Error on {url}: {e}")
+            continue
+ 
+    print("[ICC PDF] All months failed — price unavailable")
     return data
+ 
+ 
+# ==============================================================================
+# SCRAPER 2: BSP Peso-Dollar Rate
+# Source: bsp.gov.ph/statistics/external/day99_data.aspx
+# Reads exact column for current month (e.g. "Mar-26"), most recent day
+# Speed: ~0.5–1s
+# ==============================================================================
 def get_live_peso_rate():
-    """Fetches real-time PHP/USD rate from BSP"""
+    """
+    Fetches PHP/USD rate from BSP daily rate table.
+    Finds the exact column for the current month and reads the latest available day.
+    Returns: { rate (float), date (str) }
+    """
     data = {
         "rate": None,
         "date": date.today().strftime('%b %d, %Y')
     }
-
+ 
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/120.0.0.0 Safari/537.36',
-        }
-
         response = requests.get(
             "https://www.bsp.gov.ph/statistics/external/day99_data.aspx",
-            headers=headers,
+            headers=_HEADERS,
             timeout=10
         )
-
+ 
         if response.status_code != 200:
-            print(f"[BSP SCRAPER] Failed: status {response.status_code}")
+            print(f"[BSP] Failed: HTTP {response.status_code}")
             return data
-
-        soup = BeautifulSoup(response.content, 'html.parser')
-
-        # ── Get all table rows ────────────────────────────────────────────
-        rows = soup.find_all('tr')
-
-        # ── Find header row to get column positions ───────────────────────
-        # Header looks like: Date | Dec-24 | Jan-25 | Feb-25 | Mar-25 ...
-        header_row = None
-        col_months = []
-
-        for row in rows:
-            cells = row.find_all('td')
-            for cell in cells:
-                if cell.text.strip() == 'Date':
-                    header_row = cells
-                    break
-            if header_row:
-                break
-
-        if header_row:
-            # Extract month-year labels (e.g. "Jan-25", "Feb-26")
-            for cell in header_row:
-                text = cell.text.strip()
-                if re.match(r'[A-Za-z]{3}-\d{2}', text):
-                    col_months.append(text)
-
-        print(f"[BSP SCRAPER] Columns found: {col_months}")
-
-        # ── Get today's day number ────────────────────────────────────────
-        today = date.today()
+ 
+        soup = BeautifulSoup(response.content, 'lxml')
+ 
+        today     = date.today()
         today_day = today.day
-        today_month_year = today.strftime('%b-%y')  # e.g. "Mar-26"
-
-        print(f"[BSP SCRAPER] Looking for day={today_day}, month={today_month_year}")
-
-        # ── Find the column index for current month ───────────────────────
-        col_index = None
-        if today_month_year in col_months:
-            col_index = col_months.index(today_month_year)
-            print(f"[BSP SCRAPER] Current month column index: {col_index}")
-
-        # ── Find today's row and get the rate ─────────────────────────────
+        today_mth = today.strftime('%b-%y')  # e.g. "Mar-26"
+ 
+        all_rows = soup.find_all('tr')
+ 
+        # ── Step 1: Find header row and locate current month column index ──
+        target_col   = None
+        header_texts = []
+ 
+        for row in all_rows:
+            cells = row.find_all('td')
+            texts = [c.get_text(strip=True) for c in cells]
+ 
+            # Header row has "Date" and month labels like "Mar-26"
+            if 'Date' in texts and any(re.match(r'[A-Za-z]{3}-\d{2}', t) for t in texts):
+                header_texts = texts
+                print(f"[BSP] Header: {header_texts}")
+ 
+                if today_mth in header_texts:
+                    target_col = header_texts.index(today_mth)
+                    print(f"[BSP] Target column: {target_col} ({today_mth})")
+                else:
+                    # Fall back to the most recent month column available
+                    month_indices = [
+                        i for i, t in enumerate(header_texts)
+                        if re.match(r'[A-Za-z]{3}-\d{2}', t)
+                    ]
+                    if month_indices:
+                        target_col = month_indices[-1]
+                        fallback_mth = header_texts[target_col]
+                        print(f"[BSP] Fallback column: {target_col} ({fallback_mth})")
+                break
+ 
+        if target_col is None:
+            print("[BSP] Could not find target month column")
+            return data
+ 
+        # ── Step 2: Scan rows — get most recent day <= today ──────────────
         best_rate = None
         best_day  = None
-
-        for row in rows:
+ 
+        for row in all_rows:
             cells = row.find_all('td')
-            non_empty = [c.text.strip() for c in cells if c.text.strip()]
-
+ 
+            if len(cells) <= target_col:
+                continue
+ 
+            # First non-empty cell = day number
+            non_empty = [c.get_text(strip=True) for c in cells if c.get_text(strip=True)]
             if not non_empty:
                 continue
-
-            # First non-empty cell should be the day number
+ 
             try:
                 day_num = int(non_empty[0])
             except ValueError:
-                continue
-
-            # Get all numeric values in this row
-            values = []
-            for cell in cells:
-                raw = cell.text.strip().replace(',', '')
-                try:
-                    val = float(raw)
-                    if 40 < val < 100:  # PHP/USD range sanity check
-                        values.append((day_num, val))
-                except ValueError:
-                    continue
-
-            if values:
-                # Pick the last valid rate for this day (most recent month column)
-                last_val = values[-1][1]
-                if day_num <= today_day:
-                    best_rate = last_val
+                continue  # skip AVERAGE, header rows etc.
+ 
+            if day_num > today_day:
+                continue  # future day — skip
+ 
+            # Read value at exact target column
+            rate_text = cells[target_col].get_text(strip=True).replace(',', '').strip()
+ 
+            if not rate_text:
+                continue  # holiday / no trading that day
+ 
+            try:
+                val = float(rate_text)
+                if 40 < val < 100:  # sanity check: PHP/USD always in this range
+                    best_rate = val
                     best_day  = day_num
-
+                    print(f"[BSP] Day {day_num}: {val}")
+            except ValueError:
+                continue
+ 
+        # ── Step 3: Return result ─────────────────────────────────────────
         if best_rate:
             data['rate'] = best_rate
-            # Reconstruct the date
             try:
-                rate_date = date(today.year, today.month, best_day)
-                data['date'] = rate_date.strftime('%b %d, %Y')
-            except:
-                data['date'] = date.today().strftime('%b %d, %Y')
-            print(f"[BSP SCRAPER] Success: {data}")
+                data['date'] = date(today.year, today.month, best_day).strftime('%b %d, %Y')
+            except Exception:
+                data['date'] = today.strftime('%b %d, %Y')
+            print(f"[BSP] Success: {data}")
         else:
-            print("[BSP SCRAPER] No rate found")
-
+            print("[BSP] No rate found")
+ 
     except requests.exceptions.Timeout:
-        print("[BSP SCRAPER] Timeout")
+        print("[BSP] Timeout")
     except Exception as e:
-        print(f"[BSP SCRAPER] Error: {e}")
-
+        print(f"[BSP] Error: {e}")
+ 
     return data
+ 
+ 
+# ==============================================================================
+# PARALLEL FETCHER — both scrapers run at the SAME time
+# Total time = slowest single scraper (~1–2s), NOT the sum of both
+# ==============================================================================
+def get_all_live_data():
+    """
+    Runs both scrapers in parallel using threads.
+    Usage in views.py:
+        live_market, live_peso = get_all_live_data()
+    """
+    results = {"oil": None, "peso": None}
+ 
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = {
+            executor.submit(get_live_coconut_oil_price): "oil",
+            executor.submit(get_live_peso_rate):         "peso",
+        }
+        for future in as_completed(futures):
+            key = futures[future]
+            try:
+                results[key] = future.result()
+            except Exception as e:
+                print(f"[PARALLEL] {key} scraper failed: {e}")
+                if key == "oil":
+                    results[key] = {"price": None, "date": date.today().strftime('%b %d, %Y'), "change": "0.00"}
+                else:
+                    results[key] = {"rate": None, "date": date.today().strftime('%b %d, %Y')}
+ 
+    print(f"[PARALLEL] Oil:  {results['oil']}")
+    print(f"[PARALLEL] Peso: {results['peso']}")
+    return results["oil"], results["peso"]
 # ====================
 # PUBLIC VIEWS
 # ====================
@@ -315,10 +346,15 @@ def home(request):
     latest_farmgate_price = float(latest_data.farmgate_price) if latest_data else None
     latest_farmgate_date  = latest_data.date if latest_data else None
     
-    live_market = get_live_coconut_oil_price()
-    print(f"[DEBUG HOME] live_market = {live_market}")
-    live_peso    = get_live_peso_rate() 
-    print(f"[DEBUG HOME] live_peso = {live_peso}")
+    live_market = cache.get('live_market')
+    if not live_market:
+        live_market = get_live_coconut_oil_price()
+        cache.set('live_market', live_market, timeout=3600)  # cache 1 hour
+
+    live_peso = cache.get('live_peso')
+    if not live_peso:
+        live_peso = get_live_peso_rate()
+        cache.set('live_peso', live_peso, timeout=3600)
     # -------- Handle form submission --------
     if request.method == 'POST':
         form = ForecastForm(request.POST)
@@ -356,15 +392,21 @@ def home(request):
 
                 # ── Log Forecast ─────────────────────────────────────────
                 ForecastLog.objects.create(
+                    model_used=active_model, 
                     forecast_horizon=forecast_horizon,
                     farmer_input_oil_price_trend=oil_price,
                     farmer_input_peso_dollar_rate=peso_dollar,
                     price_predicted=predicted_price,
                 )
 
-                # ── Forecast Dates ───────────────────────────────────────
+                # ── Forecast Dates ──Back test
+                # forecast_start = (
+                #     latest_farmgate_date + timedelta(days=1)
+                #     if latest_farmgate_date
+                #     else datetime.now().date()
+                # )
                 forecast_start = (
-                    latest_farmgate_date + timedelta(days=1)
+                    datetime.now().date() + timedelta(days=1)
                     if latest_farmgate_date
                     else datetime.now().date()
                 )
@@ -568,8 +610,14 @@ def home(request):
     })
 
 def recent_forecasts(request):
-    """View all recent forecasts"""
+    """View all recent forecasts with calculated target dates"""
     forecasts = ForecastLog.objects.all().order_by('-created_at')[:100]
+    
+    # We calculate the 'target_date' for each forecast dynamically
+    for f in forecasts:
+        # created_at + horizon = the day the prediction is actually for
+        f.target_date = f.created_at + timedelta(days=f.forecast_horizon)
+    
     return render(request, 'forecast_copra/recent_forecasts.html', {
         'forecasts': forecasts
     })
@@ -832,7 +880,7 @@ def train_model(request):
                         preds = metrics.get('plot_preds', [])
                         is_deployment = metrics.get('is_deployment', False)
                         
-                        if actual and preds and not is_deployment:
+                        if actual and preds:
                             plt.figure(figsize=(10, 4))
                             sns.set_style("whitegrid")
                             plt.plot(actual, label='Actual Price', color='#2ecc71', linewidth=2, marker='o')
@@ -874,6 +922,8 @@ def train_model(request):
                             rmse_val = None
                             mape_store = None
                             aic_val = None
+                            plot_actual=metrics.get('plot_actual') if not is_deployment else None,
+                            plot_preds=metrics.get('plot_preds')  if not is_deployment else None, 
                             success_msg = f"✅ Model '{model_name}' trained (deployment mode) with order ({p},{d},{q})"
                         else:
                             # Store TEST metrics (not validation)
@@ -897,7 +947,9 @@ def train_model(request):
                             mae=mae_val,
                             rmse=rmse_val,
                             mape=mape_store,
-                            aic=aic_val
+                            aic=aic_val,
+                            plot_actual=metrics.get('plot_actual'),
+                            plot_preds=metrics.get('plot_preds'), 
                         )
                         messages.success(request, success_msg)
                         
@@ -1148,75 +1200,337 @@ def process_excel_file(file_path):
     except Exception as e:
         return [], f"Error processing Excel file: {str(e)}"
 
+def historical_trend(request):
 
-def get_forecast_api(request):
-    """API endpoint for forecast"""
-    if request.method == 'POST':
-        try:
-            oil_price        = float(request.POST.get('oil_price_trend'))
-            peso_dollar      = float(request.POST.get('peso_dollar_rate'))
-            forecast_horizon = int(request.POST.get('forecast_horizon'))
+    # ── 1. All actual price data (for date alignment only) ────────────────────
+    data_qs = TrainingData.objects.all().order_by('date')
+    if not data_qs.exists():
+        return render(request, 'forecast_copra/historical_trend.html', {'no_data': True})
 
-            # ✅ Get active model
-            active_model = TrainedModel.objects.get(is_active=True)
+    df = pd.DataFrame(list(data_qs.values('date', 'farmgate_price')))
+    df['date'] = pd.to_datetime(df['date'])
+    df['farmgate_price'] = pd.to_numeric(df['farmgate_price'], errors='coerce').astype(float)
+    df = df.sort_values('date').reset_index(drop=True)
 
-            # ✅ Load model
-            arimax = ARIMAXModel()
-            arimax.load_model(active_model.model_file_path)
+   # ── 2. Active model — test-set actual vs predicted ────────────────────────
+    eval_rows           = []
+    eval_dates          = pd.DatetimeIndex([])
+    eval_actual          = []
+    eval_preds           = []
+    active_model         = None
+    training_cutoff_date = None
 
-            # ✅ Let model build exog correctly via create_future_exog_with_latest
-            forecast_result = arimax.forecast(
-                steps=forecast_horizon,
-                use_latest_values=True,
-                latest_oil=oil_price,
-                latest_peso=peso_dollar,
-            )
+    try:
+        active_model = TrainedModel.objects.filter(
+            is_active=True,
+            plot_actual__isnull=False,
+            plot_preds__isnull=False,
+        ).order_by('-training_date').first()
 
-            # ✅ Dynamic start date from DB
-            latest_data = TrainingData.objects.order_by('-date').first()
-            latest_data_date = latest_data.date if latest_data else date.today()
+        if active_model:
+            # 1. Get raw lists
+            raw_actual = list(active_model.plot_actual)
+            raw_preds  = list(active_model.plot_preds)
+            
+            # 2. Determine the correct count (n)
+            # We can only plot as many points as we have dates for in the database
+            n = min(len(raw_actual), len(df))
 
-            forecast_dates = [
-                (latest_data_date + timedelta(days=i + 1)).strftime('%B %d, %Y')
-                for i in range(forecast_horizon)
+            # 3. Slice everything to the SAME length (n) from the end
+            # This ensures x and y always match shapes
+            tail_slice = df.iloc[-n:].reset_index(drop=True)
+            
+            # Trim the model data to match the available dates
+            eval_actual = raw_actual[:n]
+            eval_preds  = raw_preds[:n]
+            eval_dates  = pd.to_datetime(tail_slice['date'].values)
+
+            if len(eval_dates) > 0:
+                training_cutoff_date = eval_dates[-1]
+
+                eval_rows = [
+                    {
+                        'date':      pd.Timestamp(d).strftime('%b %d, %Y'),
+                        'actual':    round(float(a), 2),
+                        'predicted': round(float(p), 2),
+                        'error':     round(abs(float(a) - float(p)), 2),
+                        'error_pct': round(
+                            abs(float(a) - float(p)) / (abs(float(a)) + 1e-10) * 100, 2
+                        ),
+                    }
+                    for d, a, p in zip(eval_dates, eval_actual, eval_preds)
+                ]
+    except Exception as e:
+        print(f"[historical_trend] eval error: {e}")
+
+    # ── 3. Admin new data — TrainingData rows AFTER training cutoff ───────────
+    admin_rows = []
+    admin_df   = pd.DataFrame()
+
+    if training_cutoff_date is not None:
+        after_qs = TrainingData.objects.filter(
+            date__gt=training_cutoff_date.date()
+        ).order_by('date')
+
+        if after_qs.exists():
+            admin_df = pd.DataFrame(list(after_qs.values('date', 'farmgate_price')))
+            admin_df['date'] = pd.to_datetime(admin_df['date'])
+            admin_df['farmgate_price'] = pd.to_numeric(
+                admin_df['farmgate_price'], errors='coerce'
+            ).astype(float)
+            admin_df = admin_df.sort_values('date').reset_index(drop=True)
+
+            admin_rows = [
+                {
+                    'date':  row['date'].strftime('%b %d, %Y'),
+                    'price': round(float(row['farmgate_price']), 2),
+                }
+                for _, row in admin_df.iterrows()
             ]
 
-            # ✅ All forecast values
-            if hasattr(forecast_result, 'tolist'):
-                forecast_values = forecast_result.tolist()
-            else:
-                forecast_values = list(forecast_result)
+    # ── 4. User forecast log ──────────────────────────────────────────────────
+    log_rows = []
+    log_df   = pd.DataFrame()
 
-            # ✅ Pair dates with prices
-            daily_forecast = [
-                {'date': d, 'predicted_price': round(v, 2)}
-                for d, v in zip(forecast_dates, forecast_values)
-            ]
+    logs = ForecastLog.objects.all().order_by('created_at')
+    if logs.exists():
+        log_df = pd.DataFrame(
+            list(logs.values('created_at', 'price_predicted', 'forecast_horizon'))
+        )
+        log_df['created_at'] = pd.to_datetime(log_df['created_at']).dt.tz_localize(None)
+        log_df['target_date'] = log_df.apply(
+            lambda x: x['created_at'] + timedelta(days=int(x['forecast_horizon'] or 0)),
+            axis=1,
+        )
+        log_df = log_df.sort_values('target_date').reset_index(drop=True)
 
-            # ✅ Use average as the summary price for logging
-            predicted_price = round(float(np.mean(forecast_values)), 2)
+        log_rows = [
+            {
+                'date':      row['target_date'].strftime('%b %d, %Y'),
+                'predicted': round(float(row['price_predicted']), 2),
+            }
+            for _, row in log_df.iterrows()
+        ]
 
-            ForecastLog.objects.create(
-                forecast_horizon=forecast_horizon,
-                farmer_input_oil_price_trend=oil_price,
-                farmer_input_peso_dollar_rate=peso_dollar,
-                price_predicted=predicted_price,
-            )
+    # ── 5. Build chart (TEST-SET WINDOW ONLY — no 2021-2024 history) ──────────
+    plt.close('all')
 
-            return JsonResponse({
-                'success':          True,
-                'daily_forecast':   daily_forecast,
-                'predicted_price':  predicted_price,
-                'oil_price':        oil_price,
-                'peso_dollar_rate': peso_dollar,
-                'forecast_horizon': forecast_horizon,
-                'model_name':       active_model.name,
-                'accuracy':         active_model.accuracy,
-            })
+    # Collect ALL dates that should appear on the chart
+    all_chart_dates  = list(eval_dates) if len(eval_dates) > 0 else []
+    all_chart_values = []
 
-        except TrainedModel.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'No trained model available'})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+    if not admin_df.empty:
+        all_chart_dates += list(pd.to_datetime(admin_df['date'].values))
+    if not log_df.empty:
+        all_chart_dates += list(pd.to_datetime(log_df['target_date'].values))
 
-    return JsonResponse({'success': False, 'error': 'POST method required'})
+    # Dynamic figure width — wider when more dates exist
+    n_dates   = max(len(all_chart_dates), 10)
+    fig_width = max(14, n_dates * 0.55)   # ~0.55 inch per date label
+
+    fig, ax = plt.subplots(figsize=(fig_width, 6), dpi=140)
+    bg = '#0f172a'
+    fig.patch.set_facecolor(bg)
+    ax.set_facecolor(bg)
+
+    # 5a. Test-set actual — solid green
+    if len(eval_dates) > 0:
+    # Ensure data is 1D to prevent 'y1 is not 1-dimensional' error
+        import numpy as np
+        d_pts = np.ravel(eval_dates)
+        a_pts = np.ravel(eval_actual)
+
+        ax.plot(d_pts, a_pts,
+                color='#10b981', lw=2,
+                marker='o', markersize=4,
+                markerfacecolor='#065f46', markeredgecolor='#10b981',
+                label='Actual Price (Test Set)', zorder=4)
+                
+        # Use the flattened variables here specifically
+        ax.fill_between(d_pts, a_pts, color='#10b981', alpha=0.07)
+    # 5b. Test-set predicted — dashed orange
+    if len(eval_dates) > 0:
+        mape_label = (
+            f"Model Predicted (Test) — MAPE {active_model.mape:.1f}%"
+            if (active_model and active_model.mape)
+            else "Model Predicted (Test)"
+        )
+        ax.plot(eval_dates, eval_preds,
+                color='#fb923c', lw=1.8, linestyle='--',
+                marker='x', markersize=5, markeredgewidth=1.5,
+                label=mape_label, zorder=5, alpha=0.95)
+
+    # 5c. Vertical separator — where eval ends
+    if training_cutoff_date is not None:
+        ax.axvline(x=training_cutoff_date,
+                   color='#334155', linestyle=':', lw=1.5, alpha=0.8, zorder=2)
+        ax.text(
+            training_cutoff_date, 1.01, ' ← eval end',
+            transform=ax.get_xaxis_transform(),
+            color='#64748b', fontsize=7, va='bottom',
+        )
+
+    # 5d. Admin new data — cyan solid line + dots
+    if not admin_df.empty:
+        # Bridge from last eval point
+        if len(eval_dates) > 0:
+            bx = [eval_dates[-1],                  admin_df['date'].iloc[0]]
+            by = [eval_actual[-1],                 admin_df['farmgate_price'].iloc[0]]
+            ax.plot(bx, by, color='#22d3ee', lw=1, linestyle=':', alpha=0.45, zorder=3)
+
+        ax.plot(admin_df['date'], admin_df['farmgate_price'],
+                color='#22d3ee', lw=2, linestyle='-',
+                marker='o', markersize=6,
+                markerfacecolor='#0e7490', markeredgecolor='#22d3ee',
+                markeredgewidth=1.3,
+                label='Admin New Data', zorder=6)
+
+    # 5e. User forecast log — dashed rose
+    if not log_df.empty:
+        if not admin_df.empty:
+            last_x = admin_df['date'].iloc[-1]
+            last_y = admin_df['farmgate_price'].iloc[-1]
+        elif len(eval_dates) > 0:
+            last_x = eval_dates[-1]
+            last_y = eval_preds[-1]
+        else:
+            last_x = last_y = None
+
+        if last_x is not None:
+            ax.plot([last_x, log_df['target_date'].iloc[0]],
+                    [last_y, log_df['price_predicted'].iloc[0]],
+                    color='#f43f5e', lw=1, linestyle=':', alpha=0.4, zorder=3)
+
+        ax.plot(log_df['target_date'], log_df['price_predicted'],
+                color='#f43f5e', lw=1.8, linestyle='--',
+                marker='o', markersize=4,
+                label='User Forecast Log', zorder=7, alpha=0.9)
+
+    # ── 6. X-axis: ONE tick per specific date ─────────────────────────────────
+    all_unique_dates = sorted(set(all_chart_dates))
+
+    if all_unique_dates:
+        ax.set_xticks(all_unique_dates)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d\n%Y'))
+        plt.setp(ax.get_xticklabels(), rotation=45, ha='right',
+                 fontsize=6.5, color='#94a3b8')
+    else:
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d, %Y'))
+        plt.setp(ax.get_xticklabels(), rotation=45, ha='right',
+                 fontsize=8, color='#94a3b8')
+
+    # Tight x-limits — no 2021-2024 padding
+    if all_unique_dates:
+        pad = timedelta(days=3)
+        ax.set_xlim(all_unique_dates[0] - pad, all_unique_dates[-1] + pad)
+
+    # ── 7. Styling ────────────────────────────────────────────────────────────
+    ax.tick_params(axis='y', colors='#94a3b8', labelsize=9)
+    ax.set_ylabel('Farmgate Price (₱)', color='#94a3b8', fontsize=10)
+    ax.yaxis.grid(True, color='#1e293b', linewidth=0.8, alpha=0.7)
+    ax.xaxis.grid(True, color='#1e293b', linewidth=0.5, alpha=0.25)
+    for s in ax.spines.values():
+        s.set_visible(False)
+
+    legend = ax.legend(facecolor='#1e293b', edgecolor='#334155',
+                       loc='upper right', fontsize=8)
+    plt.setp(legend.get_texts(), color='#cbd5e1')
+    plt.tight_layout(pad=1.5)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', facecolor=bg)
+    graph = base64.b64encode(buf.getvalue()).decode('utf-8')
+    plt.close()
+
+    # ── 8. Summary cards ──────────────────────────────────────────────────────
+    eval_summary = None
+    if active_model and active_model.mape is not None:
+        eval_summary = {
+            'name':     active_model.name,
+            'order':    f"({active_model.p},{active_model.d},{active_model.q})",
+            'mape':     round(active_model.mape,  2),
+            'mae':      round(active_model.mae,   2) if active_model.mae   else '—',
+            'rmse':     round(active_model.rmse,  2) if active_model.rmse  else '—',
+            'aic':      round(active_model.aic,   2) if active_model.aic   else '—',
+            'accuracy': round(100 - active_model.mape, 2),
+        }
+
+    return render(request, 'forecast_copra/historical_trend.html', {
+        'graph':        graph,
+        'eval_summary': eval_summary,
+        'eval_rows':    eval_rows,
+        'admin_rows':   admin_rows,
+        'log_rows':     log_rows,
+    })
+# def get_forecast_api(request):
+#     """API endpoint for forecast"""
+#     if request.method == 'POST':
+#         try:
+#             oil_price        = float(request.POST.get('oil_price_trend'))
+#             peso_dollar      = float(request.POST.get('peso_dollar_rate'))
+#             forecast_horizon = int(request.POST.get('forecast_horizon'))
+
+#             # ✅ Get active model
+#             active_model = TrainedModel.objects.get(is_active=True)
+
+#             # ✅ Load model
+#             arimax = ARIMAXModel()
+#             arimax.load_model(active_model.model_file_path)
+
+#             # ✅ Let model build exog correctly via create_future_exog_with_latest
+#             forecast_result = arimax.forecast(
+#                 steps=forecast_horizon,
+#                 use_latest_values=True,
+#                 latest_oil=oil_price,
+#                 latest_peso=peso_dollar,
+#             )
+
+#             # Dynamic start date from DB
+#             latest_data = TrainingData.objects.order_by('-date').first()
+#             latest_data_date = latest_data.date if latest_data else date.today()
+
+#             forecast_dates = [
+#                 (latest_data_date + timedelta(days=i + 1)).strftime('%B %d, %Y')
+#                 for i in range(forecast_horizon)
+#             ]
+
+#             # ✅ All forecast values
+#             if hasattr(forecast_result, 'tolist'):
+#                 forecast_values = forecast_result.tolist()
+#             else:
+#                 forecast_values = list(forecast_result)
+
+#             # ✅ Pair dates with prices
+#             daily_forecast = [
+#                 {'date': d, 'predicted_price': round(v, 2)}
+#                 for d, v in zip(forecast_dates, forecast_values)
+#             ]
+
+#             # ✅ Use average as the summary price for logging
+#             predicted_price = round(float(np.mean(forecast_values)), 2)
+
+#             ForecastLog.objects.create(
+#                 model_used=active_model,
+#                 forecast_horizon=forecast_horizon,
+#                 farmer_input_oil_price_trend=oil_price,
+#                 farmer_input_peso_dollar_rate=peso_dollar,
+#                 price_predicted=predicted_price,
+#             )
+
+#             return JsonResponse({
+#                 'success':          True,
+#                 'daily_forecast':   daily_forecast,
+#                 'predicted_price':  predicted_price,
+#                 'oil_price':        oil_price,
+#                 'peso_dollar_rate': peso_dollar,
+#                 'forecast_horizon': forecast_horizon,
+#                 'model_name':       active_model.name,
+#                 'accuracy':         active_model.accuracy,
+#             })
+
+#         except TrainedModel.DoesNotExist:
+#             return JsonResponse({'success': False, 'error': 'No trained model available'})
+#         except Exception as e:
+#             return JsonResponse({'success': False, 'error': str(e)})
+
+#     return JsonResponse({'success': False, 'error': 'POST method required'})

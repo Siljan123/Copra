@@ -1,9 +1,8 @@
 import pandas as pd
-import os
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
-from django.utils import timezone
 from .models import User, TrainingData, TrainedModel, ForecastLog, ExcelUpload
+
 
 @admin.register(TrainingData)
 class TrainingDataAdmin(admin.ModelAdmin):
@@ -13,23 +12,23 @@ class TrainingDataAdmin(admin.ModelAdmin):
     date_hierarchy = 'date'
     ordering = ('-date',)
     list_editable = ('farmgate_price', 'oil_price_trend', 'peso_dollar_rate')
-    list_per_page = 25                      # ✅ Pagination for cleaner tables
+    list_per_page = 25
     show_full_result_count = True
+
 
 @admin.register(TrainedModel)
 class TrainedModelAdmin(admin.ModelAdmin):
-    list_display = ('name', 'mae', 'mape', 'rmse', 'aic', 'training_date', 'is_active', 'p', 'd', 'q')
+    list_display = ('name', 'mae', 'mape', 'rmse', 'aic', 'training_date', 'is_active', 'p', 'd', 'q','plot_actual', 'plot_preds')
     list_filter = ('is_active', 'training_date')
     readonly_fields = ('training_date',)
     list_per_page = 20
-    # ✅ Organize the form into sections
     fieldsets = (
         ('Model Info', {
             'fields': ('name', 'is_active')
         }),
         ('ARIMA Parameters', {
             'fields': ('p', 'd', 'q'),
-            'classes': ('collapse',),       # Collapsible section
+            'classes': ('collapse',),
         }),
         ('Performance Metrics', {
             'fields': ('mae', 'mape', 'rmse', 'aic'),
@@ -41,25 +40,53 @@ class TrainedModelAdmin(admin.ModelAdmin):
         }),
     )
     actions = ['activate_selected_models']
+
     def has_add_permission(self, request):
-        return False    
+        return False
 
     def activate_selected_models(self, request, queryset):
         TrainedModel.objects.update(is_active=False)
         queryset.update(is_active=True)
-        self.message_user(request, "Selected model has been activated.")
+        self.message_user(request, "✅ Selected model has been activated.")
     activate_selected_models.short_description = "✅ Activate selected model"
+
 
 @admin.register(ForecastLog)
 class ForecastLogAdmin(admin.ModelAdmin):
-    list_display = ('id', 'price_predicted', 'forecast_horizon', 'created_at')
-    list_filter = ('created_at',)
-    readonly_fields = ('created_at',)
+    list_display = ('id', 'get_model_name', 'price_predicted', 'forecast_horizon', 'created_at')
+    list_filter = ('created_at', 'model_used')
+    search_fields = ('model_used__name',)
+    readonly_fields = (
+        'model_used',
+        'created_at',
+        'forecast_horizon',
+        'farmer_input_oil_price_trend',
+        'farmer_input_peso_dollar_rate',
+        'price_predicted',
+    )
     list_per_page = 30
-    date_hierarchy = 'created_at'   
-    
+    date_hierarchy = 'created_at'
+    fieldsets = (
+        ('Forecast Result', {
+            'fields': ('model_used', 'forecast_horizon', 'price_predicted')
+        }),
+        ('Farmer Inputs', {
+            'fields': ('farmer_input_oil_price_trend', 'farmer_input_peso_dollar_rate'),
+            'classes': ('collapse',),
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    @admin.display(description='Model Used', ordering='model_used__name')
+    def get_model_name(self, obj):
+        return obj.model_used.name if obj.model_used else '—'
+
     def has_add_permission(self, request):
-        return False    # ✅ Date drill-down in list view
+        return False
+
 
 @admin.register(ExcelUpload)
 class ExcelUploadAdmin(admin.ModelAdmin):
@@ -67,7 +94,6 @@ class ExcelUploadAdmin(admin.ModelAdmin):
     list_filter = ('processed', 'uploaded_at')
     readonly_fields = ('uploaded_at', 'processed', 'rows_imported')
     list_per_page = 20
-    # ✅ Separate editable fields from read-only info
     fieldsets = (
         ('Upload File', {
             'fields': ('file',)
@@ -77,16 +103,12 @@ class ExcelUploadAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
         }),
     )
-    
+
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        
         try:
             df = pd.read_excel(obj.file.path)
-            
-            # Normalize column names
             df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
-            
             count = 0
             for _, row in df.iterrows():
                 TrainingData.objects.update_or_create(
@@ -98,12 +120,9 @@ class ExcelUploadAdmin(admin.ModelAdmin):
                     }
                 )
                 count += 1
-            
             obj.processed = True
             obj.rows_imported = count
             obj.save()
-            
             messages.success(request, f"✅ Successfully imported {count} rows into Training Data.")
-        
         except Exception as e:
             messages.error(request, f"❌ Failed to process file: {e}")

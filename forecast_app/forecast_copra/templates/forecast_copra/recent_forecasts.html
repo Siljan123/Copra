@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
-{% block title %}Audit Trail | CopraForecaster{% endblock %}
+{% block title %}Recent Forecasted Prices | CopraForecaster{% endblock %}
 
 {% block content %}
 <div class="animate-fade-in">
     <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
-            <h2 class="text-3xl font-bold premium-text">Forecast Audit Trail</h2>
-            <p class="text-slate-400 mt-2">Historical record of ARIMAX model simulations for Surigao del Sur.</p>
+            <h2 class="text-3xl font-bold premium-text">Recent Forecasted Prices</h2>
+            <p class="text-slate-400 mt-2"> for Surigao del Sur.</p>
         </div>
         <div class="text-sm font-medium text-slate-500 bg-white/5 px-4 py-2 rounded-full border border-white/10">
             Total Entries: <span class="text-indigo-400">{{ forecasts|length }}</span>
@@ -20,8 +20,8 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b border-white/10 bg-white/5">
-                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Timestamp</th>
-                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Oil Price Trend (kg)</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Date Submitted</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Domestic Coconut Oil Price (kg)</th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">FX (PHP/USD)</th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Horizon</th>
                         <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Predicted Price</th>
@@ -41,9 +41,15 @@
                             <span class="text-sm text-slate-300">₱ {{ forecast.farmer_input_peso_dollar_rate|floatformat:2 }}</span>
                         </td>
                         <td class="px-6 py-5 text-center">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                {{ forecast.forecast_horizon }} Days
-                            </span>
+                            <div class="text-sm font-semibold text-indigo-300">
+                                {{ forecast.target_date|date:"M d, Y" }}
+                            </div>
+                            
+                            <div class="mt-1">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-tighter">
+                                    {{ forecast.forecast_horizon }}-Day Forecast
+                                </span>
+                            </div>
                         </td>
                         <td class="px-6 py-5 text-right">
                             <span class="text-lg font-bold text-emerald-400 group-hover:scale-110 transition-transform inline-block origin-right">

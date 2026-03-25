@@ -141,7 +141,6 @@ class ARIMAXModel:
             'peso_dollar_rate',   
             'oil_price_ma7',       
             'oil_price_ma30',        
-            'peso_rate_ma7',         
         ]
 
         # Choose variables based on mode
@@ -167,20 +166,41 @@ class ARIMAXModel:
                 # ========================================================
                 # DEPLOYMENT MODE: Train on 100% of Data
                 # ========================================================
+                # DEPLOYMENT MODE: Visualizing Test Split + Training 100%
+                # ========================================================
+                total_samples = len(endog)
+                # Define the split point for the plot (e.g., last 15%)
+                split_idx = int(total_samples * (1 - test_ratio))
+                
+                # --- PART A: Generate the Evaluation Plots ---
+                # We train a temporary model on the past to "predict" the present
+                temp_train_endog = endog.iloc[:split_idx]
+                temp_test_actual = endog.iloc[split_idx:]
+                
+                temp_train_exog = exog.iloc[:split_idx] if exog is not None else None
+                temp_test_exog = exog.iloc[split_idx:] if exog is not None else None
+
+                temp_model = ARIMA(temp_train_endog, exog=temp_train_exog, order=self.order)
+                temp_fitted = temp_model.fit()
+                
+                # These are the "Testing Split" predictions for your graph
+                test_predictions = temp_fitted.forecast(steps=len(temp_test_actual), exog=temp_test_exog)
+
+                # --- PART B: Train the Final Production Model (100% Data) ---
                 full_endog = np.asarray(endog.values, dtype=np.float64)
                 full_exog = np.asarray(exog.values, dtype=np.float64) if exog is not None else None
-                
-                print(f"[DEPLOYMENT] Training on {len(full_endog)} samples")
-                print(f"[DEPLOYMENT] ARIMA order: {self.order}")
-                print(f"[DEPLOYMENT] Exog columns: {self.exog_columns}")
                 
                 self.model = ARIMA(full_endog, exog=full_exog, order=self.order)
                 self.fitted_model = self.model.fit()
                 
-                print(f"[DEPLOYMENT] Model fitted successfully.")
+                print(f"[DEPLOYMENT] Production model trained on 100% ({len(full_endog)} samples).")
 
+                # Return the split data for the graph, but the model itself is 100% trained
                 return {
                     'is_deployment': True,
+                    'aic': float(self.fitted_model.aic),
+                    'plot_actual': temp_test_actual.values.tolist(),
+                    'plot_preds': test_predictions.tolist(),
                 }
             
             else:
@@ -279,13 +299,10 @@ class ARIMAXModel:
             pickle.dump({
                 'model': self.fitted_model,
                 'order': self.order,
-                'p': self.order[0],
-                'd': self.order[1],
-                'q': self.order[2],
                 'exog_columns': self.exog_columns,
-                'last_known_exog': self.last_known_exog,  # NEW: For forecasting
-                'last_date': self.last_date,  # NEW: For calendar features
-                'original_data': self.original_data,  # NEW: For reference
+                'last_known_exog': self.last_known_exog,  
+                'last_date': self.last_date,  
+                'original_data': self.original_data, 
                 'timestamp': pd.Timestamp.now()
             }, f)
         
@@ -297,7 +314,7 @@ class ARIMAXModel:
         with open(model_path, 'rb') as f:
             saved_data = pickle.load(f)
             self.fitted_model = saved_data['model']
-            self.order = saved_data.get('order', (saved_data.get('p', 1), saved_data.get('d', 1), saved_data.get('q', 1)))
+            self.order = saved_data.get('order', ...)
             self.exog_columns = saved_data.get('exog_columns', [])
             self.last_known_exog = saved_data.get('last_known_exog', None)  # NEW
             self.last_date = saved_data.get('last_date', None)  # NEW
@@ -308,86 +325,77 @@ class ARIMAXModel:
         
         return self.fitted_model
     def forecast(self, steps=14, exog_future=None, use_latest_values=False, latest_oil=None, latest_peso=None):
-        """
-        Returns:
-            numpy array of forecasted prices
-        """
+        """Make future predictions"""
         if self.fitted_model is None:
             raise ValueError("Model not trained or loaded")
-        
-        print(f"[FORECAST] Forecasting {steps} steps ahead...")
-        
-        # Handle exogenous variables
+
         if self.exog_columns is None or len(self.exog_columns) == 0:
             # No exogenous variables - simple forecast
             forecast_result = self.fitted_model.forecast(steps=steps)
         else:
-            # Need exogenous variables
+            # Build future exog if not provided
+            if exog_future is None and use_latest_values:
+                exog_future = self.create_future_exog_with_latest(
+                    steps=steps,
+                    latest_oil=latest_oil,
+                    latest_peso=latest_peso
+                )
+
             if exog_future is None:
-                if use_latest_values and latest_oil is not None and latest_peso is not None:
-                    # DEPLOYMENT MODE: Use latest values from farmer + ICC
-                    print(f"[FORECAST] Using latest values: Oil={latest_oil}, Peso={latest_peso}")
-                    exog_future = self.create_future_exog_with_latest(steps, latest_oil, latest_peso)
-                else:
-                    # TRAINING MODE: Auto-generate from historical data
-                    print("[FORECAST] Auto-generating future exogenous variables from historical data...")
-                    exog_future = self.create_future_exog(steps)
-                
-                if exog_future is None:
-                    raise ValueError(
-                        "Could not generate future exogenous variables. "
-                        "Please provide latest_oil and latest_peso for deployment forecasting."
-                    )
-            else:
-                # Validate provided exog_future
-                expected_cols = len(self.exog_columns)
-                if isinstance(exog_future, np.ndarray):
-                    actual_cols = exog_future.shape[1] if len(exog_future.shape) > 1 else 1
-                    if actual_cols != expected_cols:
-                        raise ValueError(
-                            f"Exogenous variables mismatch. "
-                            f"Model expects {expected_cols} columns {self.exog_columns}, "
-                            f"but got {actual_cols} columns."
-                        )
-            
+                raise ValueError(
+                    f"This model requires exogenous variables: {self.exog_columns}"
+                )
+
             forecast_result = self.fitted_model.forecast(steps=steps, exog=exog_future)
-        
-        print(f"[FORECAST] Forecast completed. Mean: {forecast_result.mean():.2f}, Std: {forecast_result.std():.2f}")
-        
+
         return forecast_result
 
+
     def create_future_exog_with_latest(self, steps, latest_oil, latest_peso):
+        """Build future exogenous variables with rolling moving averages"""
         if not self.exog_columns or self.last_date is None:
             return None
 
         if self.original_data is not None and 'oil_price_trend' in self.original_data.columns:
-            last_6_oil  = self.original_data['oil_price_trend'].iloc[-6:].tolist()
-            last_29_oil = self.original_data['oil_price_trend'].iloc[-29:].tolist()
-            last_6_peso = self.original_data['peso_dollar_rate'].iloc[-6:].tolist()
-
-            oil_ma7  = np.mean(last_6_oil  + [latest_oil])
-            oil_ma30 = np.mean(last_29_oil + [latest_oil])
-            peso_ma7 = np.mean(last_6_peso + [latest_peso])
+            # Initialize rolling windows from historical data
+            rolling_oil_7  = self.original_data['oil_price_trend'].iloc[-6:].tolist()   # last 6
+            rolling_oil_30 = self.original_data['oil_price_trend'].iloc[-29:].tolist()  # last 29
+            rolling_peso_7 = self.original_data['peso_dollar_rate'].iloc[-6:].tolist()  # last 6
         else:
-            oil_ma7  = latest_oil
-            oil_ma30 = latest_oil
-            peso_ma7 = latest_peso
+            # Fallback if no historical data
+            rolling_oil_7  = [latest_oil]  * 6
+            rolling_oil_30 = [latest_oil]  * 29
+            rolling_peso_7 = [latest_peso] * 6
 
         future_exog = []
 
         for i in range(steps):
             exog_row = []
-            future_date = self.last_date + pd.Timedelta(days=i + 1)
+
+            # ✅ Add latest to window, remove oldest (rolling update per step)
+            rolling_oil_7.append(latest_oil)
+            rolling_oil_7.pop(0)
+
+            rolling_oil_30.append(latest_oil)
+            rolling_oil_30.pop(0)
+
+            rolling_peso_7.append(latest_peso)
+            rolling_peso_7.pop(0)
+
+            # ✅ Recalculate MAs for this step
+            oil_ma7  = np.mean(rolling_oil_7)
+            oil_ma30 = np.mean(rolling_oil_30)
+            peso_ma7 = np.mean(rolling_peso_7)
 
             for col in self.exog_columns:
-                if col == 'oil_price_lag1':
+                if col == 'oil_price_trend':
                     exog_row.append(float(latest_oil))
+                elif col == 'peso_dollar_rate':
+                    exog_row.append(float(latest_peso))
                 elif col == 'oil_price_ma7':
                     exog_row.append(float(oil_ma7))
                 elif col == 'oil_price_ma30':
                     exog_row.append(float(oil_ma30))
-                elif col == 'peso_dollar_rate_lag1':
-                    exog_row.append(float(latest_peso))
                 elif col == 'peso_rate_ma7':
                     exog_row.append(float(peso_ma7))
                 else:
@@ -395,6 +403,4 @@ class ARIMAXModel:
 
             future_exog.append(exog_row)
 
-        future_exog_array = np.array(future_exog, dtype=np.float64)
-        print(f"[FORECAST] Future exog shape: {future_exog_array.shape}")
-        return future_exog_array
+        return np.array(future_exog, dtype=np.float64)

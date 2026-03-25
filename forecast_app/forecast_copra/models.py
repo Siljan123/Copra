@@ -64,7 +64,9 @@ class TrainedModel(models.Model):
         blank=True, 
         help_text="Akaike Information Criterion"
     )
-    
+    #plots
+    plot_actual = models.JSONField(null=True, blank=True)   # list of floats
+    plot_preds  = models.JSONField(null=True, blank=True)   # list of floats
     class Meta:
         verbose_name_plural = "Trained Models"
         ordering = ['-training_date']
@@ -79,6 +81,15 @@ class TrainedModel(models.Model):
         super().save(*args, **kwargs)
 
 class ForecastLog(models.Model):
+     # ✅ NEW — FK to TrainedModel for auditability
+    model_used = models.ForeignKey(
+        TrainedModel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='forecast_logs',
+        help_text="The ARIMAX model that produced this forecast"
+    )
     forecast_horizon = models.IntegerField(help_text="Number of days to forecast")
     farmer_input_oil_price_trend = models.DecimalField(max_digits=10, decimal_places=2)
     farmer_input_peso_dollar_rate = models.DecimalField(max_digits=10, decimal_places=4)
