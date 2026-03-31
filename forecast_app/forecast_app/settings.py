@@ -195,6 +195,7 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
+ALLOWED_HOSTS = ['ssh root@76.13.191.84', 'nemsu-tagbina-voting.online']
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
