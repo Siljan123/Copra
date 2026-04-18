@@ -593,20 +593,20 @@ def home(request):
     return render(request, 'forecast_copra/home.html', {
         'form':            form,
         'recent_forecasts': recent_forecasts,
-        'model_available': model_available,
-        'active_model':    active_model,
-        'model_info':      model_info,
-        'suggested_oil':  latest_data.oil_price_trend,
-        'suggested_peso': latest_data.peso_dollar_rate,
+        'model_available': model_available if model_available else None,
+        'active_model':    active_model if active_model else None,
+        'model_info':      model_info if model_info else None,
+        'suggested_oil':  latest_data.oil_price_trend if latest_data else None,
+        'suggested_peso': latest_data.peso_dollar_rate if latest_data else None,
         'is_negative':   "-" in str(live_market['change']),
         'live_oil_price': f"{live_market['price']:.2f}" if live_market['price'] else "Unavailable",
-        'live_oil_date':  live_market['date'],
-        'live_oil_change': live_market['change'],    
-        'latest_date':    latest_data.date,
+        'live_oil_date':  live_market['date'] if live_market['date'] else "Unavailable",
+        'live_oil_change': live_market['change'] if live_market['change'] else "Unavailable",
+        'latest_date':    latest_data.date if latest_data else None,
         'live_peso_rate':  f"{live_peso['rate']:.2f}" if live_peso['rate'] else None,
-        'live_peso_date':  live_peso['date'],
-        'latest_farmgate_price':  latest_farmgate_price,
-        'latest_farmgate_date':   latest_farmgate_date,
+        'live_peso_date':  live_peso['date'] if live_peso['date'] else "Unavailable",
+        'latest_farmgate_price':  latest_farmgate_price if latest_farmgate_price else None,
+        'latest_farmgate_date':   latest_farmgate_date if latest_farmgate_date else None,
     })
 
 def recent_forecasts(request):
@@ -799,7 +799,7 @@ def train_model(request):
             processed_data = list(TrainingData.objects.all().values())
             use_full_data = True
             
-        if processed_data and len(processed_data) > 0 and ('diagnose' in request.POST or 'excel_train' in request.POST):
+        if processed_data and len(processed_data) > 0 and 'diagnose' in request.POST:
             try:
                 df_raw = pd.DataFrame(processed_data)
                 df_raw['date'] = pd.to_datetime(df_raw['date'])
@@ -830,7 +830,7 @@ def train_model(request):
                 print(f"Raw series plot error: {e}")
 
         # 3. Generate Diagnostic Graph (ACF/PACF) ONLY for Excel evaluation training
-        if processed_data and len(processed_data) > 0 and 'excel_train' in request.POST:
+        if processed_data and len(processed_data) > 0 and 'diagnose' in request.POST:
             try:
                 df = pd.DataFrame(processed_data)
                 df['date'] = pd.to_datetime(df['date'])       
@@ -1212,7 +1212,7 @@ def historical_trend(request):
     df['farmgate_price'] = pd.to_numeric(df['farmgate_price'], errors='coerce').astype(float)
     df = df.sort_values('date').reset_index(drop=True)
 
-   # ── 2. Active model — test-set actual vs predicted ────────────────────────
+    # ── 2. Active model — test-set actual vs predicted ────────────────────────
     eval_rows           = []
     eval_dates          = pd.DatetimeIndex([])
     eval_actual          = []
@@ -1228,65 +1228,85 @@ def historical_trend(request):
         ).order_by('-training_date').first()
 
         if active_model:
-            # 1. Get raw lists
-            raw_actual = list(active_model.plot_actual)
-            raw_preds  = list(active_model.plot_preds)
-            
-            # 2. Determine the correct count (n)
-            # We can only plot as many points as we have dates for in the database
-            n = min(len(raw_actual), len(df))
+            # 1. Get plot lists, if available (evaluation mode path)
+            if active_model.plot_actual is not None and active_model.plot_preds is not None:
+                raw_actual = list(active_model.plot_actual)
+                raw_preds  = list(active_model.plot_preds)
 
-            # 3. Slice everything to the SAME length (n) from the end
-            # This ensures x and y always match shapes
-            tail_slice = df.iloc[-n:].reset_index(drop=True)
-            
-            # Trim the model data to match the available dates
-            eval_actual = raw_actual[:n]
-            eval_preds  = raw_preds[:n]
-            eval_dates  = pd.to_datetime(tail_slice['date'].values)
+                # 2. Determine the correct count (n) for eval group
+                n = min(len(raw_actual), len(df))
 
-            if len(eval_dates) > 0:
-                training_cutoff_date = eval_dates[-1]
+                # 3. Slice to match dataset end and preserve alignment
+                tail_slice = df.iloc[-n:].reset_index(drop=True)
+                eval_actual = raw_actual[:n]
+                eval_preds  = raw_preds[:n]
+                eval_dates  = pd.to_datetime(tail_slice['date'].values)
 
-                eval_rows = [
-                    {
-                        'date':      pd.Timestamp(d).strftime('%b %d, %Y'),
-                        'actual':    round(float(a), 2),
-                        'predicted': round(float(p), 2),
-                        'error':     round(abs(float(a) - float(p)), 2),
-                        'error_pct': round(
-                            abs(float(a) - float(p)) / (abs(float(a)) + 1e-10) * 100, 2
-                        ),
-                    }
-                    for d, a, p in zip(eval_dates, eval_actual, eval_preds)
-                ]
+                if len(eval_dates) > 0:
+                    eval_rows = [
+                        {
+                            'date':      pd.Timestamp(d).strftime('%b %d, %Y'),
+                            'actual':    round(float(a), 2),
+                            'predicted': round(float(p), 2),
+                            'error':     round(abs(float(a) - float(p)), 2),
+                            'error_pct': round(
+                                abs(float(a) - float(p)) / (abs(float(a)) + 1e-10) * 100, 2
+                            ),
+                        }
+                        for d, a, p in zip(eval_dates, eval_actual, eval_preds)
+                    ]
+
+                    # Use the last evaluated date as the admin data cutoff in evaluation mode
+                    training_cutoff_date = eval_dates[-1]
+
+            # Deployment or no plot data: use last available historical date as cutoff
+            if training_cutoff_date is None:
+                training_cutoff_date = df['date'].max()
     except Exception as e:
         print(f"[historical_trend] eval error: {e}")
 
-    # ── 3. Admin new data — TrainingData rows AFTER training cutoff ───────────
+    # If no cutoff from evaluation model, check for deployment model (or old/legacy backup)
+    if training_cutoff_date is None:
+        active_model = TrainedModel.objects.filter(is_active=True).order_by('-training_date').first()
+        if active_model:
+            # For deployment mode we consider all data used by model as up to the model training time.
+            # So new admin records should be strictly after the last training timestamp.
+            training_cutoff_date = active_model.training_date.date()
+        else:
+            # Fallback if no active model exists
+            training_cutoff_date = df['date'].max()
+
+    # ── 3. Admin new data — TrainingData rows in a recent window around training cutoff ──
     admin_rows = []
     admin_df   = pd.DataFrame()
 
+    admin_window_days = 5
+    admin_window_start = None
     if training_cutoff_date is not None:
+        admin_window_start = training_cutoff_date - timedelta(days=admin_window_days)
+
+    if admin_window_start is not None:
         after_qs = TrainingData.objects.filter(
-            date__gt=training_cutoff_date.date()
+            date__gte=admin_window_start
         ).order_by('date')
+    else:
+        after_qs = TrainingData.objects.all().order_by('date')
 
-        if after_qs.exists():
-            admin_df = pd.DataFrame(list(after_qs.values('date', 'farmgate_price')))
-            admin_df['date'] = pd.to_datetime(admin_df['date'])
-            admin_df['farmgate_price'] = pd.to_numeric(
-                admin_df['farmgate_price'], errors='coerce'
-            ).astype(float)
-            admin_df = admin_df.sort_values('date').reset_index(drop=True)
+    if after_qs.exists():
+        admin_df = pd.DataFrame(list(after_qs.values('date', 'farmgate_price')))
+        admin_df['date'] = pd.to_datetime(admin_df['date'])
+        admin_df['farmgate_price'] = pd.to_numeric(
+            admin_df['farmgate_price'], errors='coerce'
+        ).astype(float)
+        admin_df = admin_df.sort_values('date').reset_index(drop=True)
 
-            admin_rows = [
-                {
-                    'date':  row['date'].strftime('%b %d, %Y'),
-                    'price': round(float(row['farmgate_price']), 2),
-                }
-                for _, row in admin_df.iterrows()
-            ]
+        admin_rows = [
+            {
+                'date':  row['date'].strftime('%b %d, %Y'),
+                'price': round(float(row['farmgate_price']), 2),
+            }
+            for _, row in admin_df.iterrows()
+        ]
 
     # ── 4. User forecast log ──────────────────────────────────────────────────
     log_rows = []
@@ -1311,6 +1331,29 @@ def historical_trend(request):
             }
             for _, row in log_df.iterrows()
         ]
+
+    # Compare admin actual to user forecast for exact dates
+    admin_forecast_rows = []
+    if not admin_df.empty and not log_df.empty:
+        merged = pd.merge(
+            admin_df,
+            log_df[['target_date', 'price_predicted']],
+            left_on='date',
+            right_on='target_date',
+            how='inner'
+        )
+
+        if not merged.empty:
+            admin_forecast_rows = [
+                {
+                    'date':      row['date'].strftime('%b %d, %Y'),
+                    'actual':    round(float(row['farmgate_price']), 2),
+                    'forecast':  round(float(row['price_predicted']), 2),
+                    'diff':      round(float(row['farmgate_price']) - float(row['price_predicted']), 2),
+                    'diff_pct':  round(abs(float(row['farmgate_price']) - float(row['price_predicted'])) / (abs(float(row['farmgate_price'])) + 1e-10) * 100, 2),
+                }
+                for _, row in merged.iterrows()
+            ]
 
     # ── 5. Build chart (TEST-SET WINDOW ONLY — no 2021-2024 history) ──────────
     plt.close('all')
@@ -1462,75 +1505,22 @@ def historical_trend(request):
         'admin_rows':   admin_rows,
         'log_rows':     log_rows,
     })
-# def get_forecast_api(request):
-#     """API endpoint for forecast"""
-#     if request.method == 'POST':
-#         try:
-#             oil_price        = float(request.POST.get('oil_price_trend'))
-#             peso_dollar      = float(request.POST.get('peso_dollar_rate'))
-#             forecast_horizon = int(request.POST.get('forecast_horizon'))
 
-#             # ✅ Get active model
-#             active_model = TrainedModel.objects.get(is_active=True)
+def get_live_data_api(request):
+    """API endpoint for mobile to get live market data.
 
-#             # ✅ Load model
-#             arimax = ARIMAXModel()
-#             arimax.load_model(active_model.model_file_path)
+    GET /api/live-data/
+    Returns JSON with live_oil and live_peso.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'error': 'GET method required'})
 
-#             # ✅ Let model build exog correctly via create_future_exog_with_latest
-#             forecast_result = arimax.forecast(
-#                 steps=forecast_horizon,
-#                 use_latest_values=True,
-#                 latest_oil=oil_price,
-#                 latest_peso=peso_dollar,
-#             )
-
-#             # Dynamic start date from DB
-#             latest_data = TrainingData.objects.order_by('-date').first()
-#             latest_data_date = latest_data.date if latest_data else date.today()
-
-#             forecast_dates = [
-#                 (latest_data_date + timedelta(days=i + 1)).strftime('%B %d, %Y')
-#                 for i in range(forecast_horizon)
-#             ]
-
-#             # ✅ All forecast values
-#             if hasattr(forecast_result, 'tolist'):
-#                 forecast_values = forecast_result.tolist()
-#             else:
-#                 forecast_values = list(forecast_result)
-
-#             # ✅ Pair dates with prices
-#             daily_forecast = [
-#                 {'date': d, 'predicted_price': round(v, 2)}
-#                 for d, v in zip(forecast_dates, forecast_values)
-#             ]
-
-#             # ✅ Use average as the summary price for logging
-#             predicted_price = round(float(np.mean(forecast_values)), 2)
-
-#             ForecastLog.objects.create(
-#                 model_used=active_model,
-#                 forecast_horizon=forecast_horizon,
-#                 farmer_input_oil_price_trend=oil_price,
-#                 farmer_input_peso_dollar_rate=peso_dollar,
-#                 price_predicted=predicted_price,
-#             )
-
-#             return JsonResponse({
-#                 'success':          True,
-#                 'daily_forecast':   daily_forecast,
-#                 'predicted_price':  predicted_price,
-#                 'oil_price':        oil_price,
-#                 'peso_dollar_rate': peso_dollar,
-#                 'forecast_horizon': forecast_horizon,
-#                 'model_name':       active_model.name,
-#                 'accuracy':         active_model.accuracy,
-#             })
-
-#         except TrainedModel.DoesNotExist:
-#             return JsonResponse({'success': False, 'error': 'No trained model available'})
-#         except Exception as e:
-#             return JsonResponse({'success': False, 'error': str(e)})
-
-#     return JsonResponse({'success': False, 'error': 'POST method required'})
+    try:
+        live_oil, live_peso = get_all_live_data()
+        return JsonResponse({
+            'success': True,
+            'live_oil': live_oil,
+            'live_peso': live_peso,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

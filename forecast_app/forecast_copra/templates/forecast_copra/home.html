@@ -10,24 +10,37 @@
     class="hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm transition-opacity duration-300">
 </div>
 
-<!-- Coconut Community Modal -->
 <div id="modal-coconut"
-    class="hidden fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-            w-4xl rounded-2xl overflow-hidden shadow-2xl
-           border border-white/10 flex flex-col"
-    style="height: 90vh;">
+    class="hidden fixed z-50
+           top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+           rounded-2xl overflow-hidden shadow-2xl
+           border border-white/10 flex flex-col
+           w-[95vw] sm:w-[90vw] md:w-4xl"
+    style="height: 90vh; max-height: 90vh;">
+
     <!-- Modal Header -->
-    <div class="flex items-center justify-between px-5 py-3 bg-[#0f172a] border-b border-white/10 shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="w-2 h-2 rounded-full bg-indigo-400"></div>
-            <span class="text-sm text-white font-semibold">coconutcommunity.org — Weekly Price Update</span>
-            <h1 class="text-xs text-indigo-500">Choose Philippines Coconut Oil Price (USD/MT)</h1>
+    <div class="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 bg-[#0f172a] border-b border-white/10 shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+            <div class="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3 min-w-0">
+                <span class="text-xs sm:text-sm text-white font-semibold truncate">
+                    coconutcommunity.org
+                </span>
+                <h1 class="text-[10px] sm:text-xs text-indigo-500 truncate">
+                    <span class="hidden sm:inline">Weekly Price Update — </span>Choose PH Coconut Oil Price (USD/MT)
+                </h1>
+            </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
             <a href="https://coconutcommunity.org/page-statistics/weekly-price-update"
                target="_blank"
-               class="text-[11px] text-indigo-400 hover:text-emerald-400 transition-colors font-medium">
+               class="hidden sm:inline text-[11px] text-indigo-400 hover:text-emerald-400 transition-colors font-medium whitespace-nowrap">
                 Open in new tab ↗
+            </a>
+            <a href="https://coconutcommunity.org/page-statistics/weekly-price-update"
+               target="_blank"
+               class="sm:hidden w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/20 text-indigo-400 hover:text-emerald-400 transition-all text-xs font-bold">
+                ↗
             </a>
             <button type="button" onclick="closeModal('modal-coconut')"
                 class="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/20 text-slate-400 hover:text-white transition-all text-sm font-bold">
@@ -35,39 +48,63 @@
             </button>
         </div>
     </div>
-    <!-- iframe -->
-    <iframe
-        src="https://coconutcommunity.org/page-statistics/weekly-price-update"
-        class="w-full flex-1 bg-white"
-        frameborder="0"
-        loading="lazy"
-        title="Coconut Community Weekly Price Update">
-    </iframe>
+
+    <!-- Scrollable iframe wrapper -->
+    <div class="flex-1 overflow-y-auto overscroll-contain">
+        <iframe
+            src="https://coconutcommunity.org/page-statistics/weekly-price-update"
+            class="w-full bg-white"
+            style="height: 100%; min-height: 600px;"
+            frameborder="0"
+            loading="lazy"
+            title="Coconut Community Weekly Price Update">
+        </iframe>
+    </div>
+
     <!-- Modal Footer -->
-    <div class="px-5 py-2 bg-[#0f172a] border-t border-white/10 shrink-0">
-        <p class="text-[10px] text-slate-500 text-center">
-            ⚠️ If the preview is blank, the site may block embedding — use "Open in new tab" above.
+    <div class="px-3 sm:px-5 py-2 bg-[#0f172a] border-t border-white/10 shrink-0">
+        <p class="text-[10px] text-slate-500 text-center leading-tight">
+            ⚠️ If preview is blank, the site may block embedding —
+            <a href="https://coconutcommunity.org/page-statistics/weekly-price-update"
+               target="_blank"
+               class="text-indigo-400 hover:text-emerald-400 transition-colors sm:hidden">
+                open in new tab ↗
+            </a>
+            <span class="hidden sm:inline">use "Open in new tab" above.</span>
         </p>
     </div>
 </div>
-
 <!-- BSP Modal -->
 <div id="modal-bsp"
     class="hidden fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-        w-4xl rounded-2xl overflow-hidden shadow-2xl
-           border border-white/10 flex flex-col"
-    style="height: 80vh;">
+           rounded-2xl overflow-hidden shadow-2xl
+           border border-white/10 flex flex-col
+           w-[95vw] sm:w-[90vw] md:w-4xl"
+    style="height: 90vh; max-height: 90vh;">
+
     <!-- Modal Header -->
-    <div class="flex items-center justify-between px-5 py-3 bg-[#0f172a] border-b border-white/10 shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
-            <span class="text-sm text-white font-semibold">BSP — PHP/USD Daily Exchange Rate</span>
+    <div class="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 bg-[#0f172a] border-b border-white/10 shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+            <div class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3 min-w-0">
+                <span class="text-xs sm:text-sm text-white font-semibold truncate">BSP</span>
+                <h1 class="text-[10px] sm:text-xs text-emerald-600 truncate">
+                    PHP/USD Daily Exchange Rate
+                </h1>
+            </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+            <!-- Desktop link -->
             <a href="https://www.bsp.gov.ph/statistics/external/day99_data.aspx"
                target="_blank"
-               class="text-[11px] text-emerald-400 hover:text-indigo-400 transition-colors font-medium">
+               class="hidden sm:inline text-[11px] text-emerald-400 hover:text-indigo-400 transition-colors font-medium whitespace-nowrap">
                 Open in new tab ↗
+            </a>
+            <!-- Mobile icon-only link -->
+            <a href="https://www.bsp.gov.ph/statistics/external/day99_data.aspx"
+               target="_blank"
+               class="sm:hidden w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/20 text-emerald-400 hover:text-indigo-400 transition-all text-xs font-bold">
+                ↗
             </a>
             <button type="button" onclick="closeModal('modal-bsp')"
                 class="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/20 text-slate-400 hover:text-white transition-all text-sm font-bold">
@@ -75,19 +112,29 @@
             </button>
         </div>
     </div>
-    <!-- iframe -->
-    <iframe
-        src="https://www.bsp.gov.ph/statistics/external/day99_data.aspx"
-        class="w-full flex-1 bg-white"
-        frameborder="0"
-        loading="lazy"
-        title="BSP PHP/USD Exchange Rate">
-    </iframe>
+
+    <!-- Scrollable iframe wrapper -->
+    <div class="flex-1 overflow-y-auto overscroll-contain">
+        <iframe
+            src="https://www.bsp.gov.ph/statistics/external/day99_data.aspx"
+            class="w-full bg-white"
+            style="height: 100%; min-height: 600px;"
+            frameborder="0"
+            loading="lazy"
+            title="BSP PHP/USD Exchange Rate">
+        </iframe>
+    </div>
+
     <!-- Modal Footer -->
-    <div class="px-5 py-2 bg-[#0f172a] border-t border-white/10 shrink-0">
-      
-        <p class="text-[10px] text-slate-500 text-center">
-            ⚠️ If the preview is blank, the site may block embedding — use "Open in new tab" above.
+    <div class="px-3 sm:px-5 py-2 bg-[#0f172a] border-t border-white/10 shrink-0">
+        <p class="text-[10px] text-slate-500 text-center leading-tight">
+            ⚠️ If preview is blank, the site may block embedding —
+            <a href="https://www.bsp.gov.ph/statistics/external/day99_data.aspx"
+               target="_blank"
+               class="text-emerald-400 hover:text-indigo-400 transition-colors sm:hidden">
+                open in new tab ↗
+            </a>
+            <span class="hidden sm:inline">use "Open in new tab" above.</span>
         </p>
     </div>
 </div>
@@ -97,7 +144,7 @@
 <header class="text-center mb-16 max-w-3xl mx-auto">
     
     <p class="text-slate-400 text-lg leading-relaxed">
-        Enter current indicators below to generate your outlook.
+     A data-driven forecasting tool that helps farmers and traders in Surigao del Sur anticipate copra farmgate prices using historical data, coconut oil price trends, and peso–dollar exchange rates
     </p>
            {% comment %} {% if latest_farmgate_price %}
             <p class="text-white-400 text-xl text-sm mb-4">
@@ -109,9 +156,18 @@
 
 <div class="grid lg:grid-cols-5 gap-8 items-start">
     <div class="lg:col-span-3 glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden">
-   
+ 
         <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 blur-3xl rounded-full"></div>
-        
+       {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
         <form method="post" class="space-y-8">
             {% csrf_token %}
             
@@ -254,6 +310,7 @@
             </div>
 
             <button type="submit" id="submitBtn" disabled
+                    onclick="checkModel(event)"
                 class="w-full py-5 bg-gradient-to-r from-slate-600 to-slate-500 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-3 cursor-not-allowed opacity-50">
                 <span>Run Simulation</span>
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
@@ -363,5 +420,16 @@ function autoCalculate() {
 
 document.getElementById('oil_price_usd_mt').addEventListener('input', autoCalculate);
 document.getElementById('peso_dollar_rate').addEventListener('input', autoCalculate);
+
+
+function checkModel(event) {
+    // We use the boolean variable passed from your Django view
+    const modelAvailable = {{ model_available|yesno:"true,false" }};
+    
+    if (!modelAvailable) {
+        event.preventDefault(); // Stop the form from submitting
+        alert("Action Denied: There is no active model to run the simulation.");
+    }
+}
 </script>
 {% endblock %}

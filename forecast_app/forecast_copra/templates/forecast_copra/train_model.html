@@ -83,14 +83,18 @@
                     </div>
                 </div>
             </div>
+            <div class="flex flex-wrap gap-3 justify-center">
+
             <button type="submit" name="diagnose"
-                    style="padding: 12px 25px; background: #2196F3; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px; margin-right: 10px;">
-                📊 Diagnose Data (View Raw Series)
+                    style="padding: 5px; background: #2196F3; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px; margin-right: 10px;">
+             Diagnose & Visualize (ACF/PACF)
             </button>
+            <br>
             <button type="submit" name="excel_train" 
-                    style="padding: 12px 25px; background: #4CAF50; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
+                    style="padding: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
                 Train & Evaluate Model
             </button>
+            </div>
         </form>
     </div>
     
@@ -177,17 +181,17 @@
 </div>
 {% endif %}
 
-<!-- NEW: Enhanced Metrics Display with Validation and Test -->
+<!--Enhanced Metrics Display with Validation and Test -->
 {% if metrics.aic %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0; padding: 2rem;">
     <div class="card-header bg-white py-3">
         <h5 class="mb-0 text-primary"><i class="fas fa-chart-bar me-2"></i> Model Performance Metrics</h5>
     </div>
-    <div class="card-body bg-light">
+    <div class="card-body bg-light p-4">
         <div class="row">
             <!-- AIC Card -->
             <div class="col-md-12 mb-3">
-                <div class="p-3 border rounded bg-white">
+                <div class="p-3 border rounded metric-subcard aic-subcard">
                     <h6 class="text-muted mb-1">AIC (Akaike Information Criterion)</h6>
                     <h4 class="mb-2">{{ metrics.aic|floatformat:2 }}</h4>
                     <small class="text-secondary">
@@ -198,8 +202,8 @@
 
             {% if not metrics.is_deployment %}
             <!-- Validation Metrics (only for Excel training) -->
-            <div class="col-md-6 mb-3">
-                <div class="p-3 border rounded bg-white" style="border-left: 4px solid #ff9800 !important;">
+            <div class="col-md-6 mb-3 p-4">
+                <div class="p-3 border rounded metric-subcard val-subcard" style="border-left: 4px solid #ff9800 !important;">
                     <h6 class="mb-2">
                         <span class="badge bg-warning text-dark">Validation Set</span>
                     </h6>
@@ -223,7 +227,7 @@
 
             <!-- Test Metrics (only for Excel training) -->
             <div class="col-md-6 mb-3">
-                <div class="p-3 border rounded bg-white" style="border-left: 4px solid #4CAF50 !important;">
+                <div class="p-3 border rounded metric-subcard test-subcard" style="border-left: 4px solid #4CAF50 !important;">
                     <h6 class="mb-2">
                         <span class="badge bg-success">Test Set (Final)</span>
                     </h6>
@@ -260,7 +264,7 @@
             {% else %}
             <!-- Deployment Metrics (100% training data) -->
             <div class="col-md-12">
-                <div class="p-3 border rounded bg-white" style="border-left: 4px solid #2196F3 !important;">
+                <div class="p-3 border rounded metric-subcard deploy-subcard" style="border-left: 4px solid #2196F3 !important;">
                     <h6 class="mb-2">
                         <span class="badge bg-primary">Deployment Mode (In-Sample Metrics)</span>
                     </h6>
@@ -274,13 +278,13 @@
 {% endif %}
 
 {% if comparison_rows %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0; padding: 1rem;">
     <div class="card-header bg-white py-3">
         <h5 class="mb-0 text-primary"><i class="fas fa-table me-2"></i> Actual vs Predicted (Test Set)</h5>
     </div>
     <div class="card-body p-0">
         <div style="max-height: 320px; overflow-y: auto;">
-            <table class="table table-sm table-hover mb-0">
+            <table class="table table-sm table-hover mb-0 table-custom">
                 <thead class="table-light sticky-top">
                     <tr>
                         <th style="width: 10%;">#</th>
@@ -310,6 +314,7 @@
     </div>
 </div>
 {% endif %}
+{% comment %} Diagnose {% endcomment %}
 {% if raw_series_graph %}
 <div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #2196F3;">
     <div class="card-header bg-primary text-white py-3">
@@ -387,6 +392,52 @@
         position: sticky;
         top: 0;
         z-index: 10;
+    }
+
+    .table-custom {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .table-custom th {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+    }
+    .table-custom td {
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+    }
+    .table-custom tbody tr:nth-child(even) {
+        background: #f8f9fa;
+    }
+    .table-custom tbody tr:hover {
+        background: #e9ecef;
+    }
+
+    .metric-subcard {
+        transition: all 0.3s ease;
+        border-radius: 10px;
+    }
+    .metric-subcard:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    .aic-subcard {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    }
+    .val-subcard {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffeaa7 100%);
+    }
+    .test-subcard {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    }
+    .deploy-subcard {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
     }
 </style>
 {% endblock %}

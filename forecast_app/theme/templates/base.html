@@ -5,6 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CopraForecaster | Analytics{% endblock %}</title>
+    <!-- ── SEO Meta Tags ── -->
+    <meta name="description" content="{% block meta_description %}Copra farmgate price forecasting system for Surigao del Sur. Powered by ARIMAX model using oil price trends and peso-dollar exchange rates.{% endblock %}">
+    <meta name="keywords" content="copra price forecast, farmgate price, Surigao del Sur, ARIMAX, copra market, Philippines coconut price">
+    <meta name="author" content="CopraForecast Surigao del Sur">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://coprasurcast.online{% block canonical_path %}/{% endblock %}">
+
+    <!-- ── Open Graph (Facebook/Messenger preview) ── -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="CopraForecast Surigao del Sur">
+    <meta property="og:title" content="{% block og_title %}Copra Price Forecasting System{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Get accurate copra farmgate price forecasts for Surigao del Sur using AI-powered ARIMAX model.{% endblock %}">
+    <meta property="og:url" content="https://coprasurcast.online{% block og_path %}/{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}https://coprasurcast.online{% static 'img/og-image.png' %}{% endblock %}">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% tailwind_css %}
     
@@ -417,9 +432,16 @@
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        History
+                        Recent Forecasts
                     </a>
-
+                    <a href="{% url 'historical_trend' %}"
+                        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
+                        {% if request.path == '/recent-forecasts/' %}bg-white/10 text-white{% else %}text-slate-400 hover:bg-white/5 hover:text-white{% endif %}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Historical Trend
+                    </a>
                     <div class="border-t border-white/10 my-1"></div>
 
                     {% if user.is_authenticated %}
