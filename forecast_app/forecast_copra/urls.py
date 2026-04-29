@@ -23,3 +23,12 @@ urlpatterns = [
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    
+
+
+    # ── Forecast Dates ──Back test
+                # forecast_start = (
+                #     latest_farmgate_date + timedelta(days=1)
+                #     if latest_farmgate_date
+                #     else datetime.now().date()
+                # )

@@ -40,12 +40,39 @@ from webdriver_manager.chrome import ChromeDriverManager
 from datetime import date, datetime
 import re
 import requests
+from .models import DOEDieselUpload
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
 from .forms import ExcelUploadForm, LoginForm, TrainingDataForm, ForecastForm
 from .models import TrainingData, TrainedModel, ForecastLog, ExcelUpload
 from .utils.arimax_model import ARIMAXModel
+
+
+def parse_period_to_date(period_label):
+    """
+    Parse period label like 'April 21-27, 2026' into a date (start of period).
+    Returns date object or None if parsing fails.
+    """
+    if not period_label:
+        return None
+    try:
+        # Split by '-' to separate start and end
+        parts = period_label.split('-')
+        if len(parts) >= 2:
+            start_part = parts[0].strip()  # e.g., "April 21"
+            # Get year from the end part
+            end_part = parts[1].strip()
+            if ',' in end_part:
+                year = end_part.split(',')[1].strip()
+            else:
+                # Fallback, assume current year or something, but for now None
+                return None
+            start_date_str = f"{start_part}, {year}"
+            return datetime.strptime(start_date_str, "%B %d, %Y").date()
+    except (ValueError, IndexError):
+        pass
+    return None
 
 
 # ── Shared headers ────────────────────────────────────────────────────────────
@@ -302,7 +329,31 @@ def get_live_peso_rate():
  
     return data
  
- 
+def get_latest_doe_diesel_average():
+    """
+    Get the latest provincial average diesel price from the most recent DOE upload.
+    Returns (average_price, period_label) or (None, None) if not found.
+    """
+    from .models import DOEDieselUpload
+    
+    # Get the most recent processed upload
+    latest_upload = DOEDieselUpload.objects.filter(processed=True).first()
+    
+    if not latest_upload:
+        return None, None
+    
+    # Calculate provincial average from all municipality prices
+    prices = latest_upload.prices.all()
+    if not prices:
+        return None, None
+    
+    averages = [p.average for p in prices if p.average is not None]
+    if not averages:
+        return None, None
+    
+    provincial_average = sum(averages) / len(averages)
+    
+    return provincial_average, (latest_upload.start_date, latest_upload.end_date) 
 # ==============================================================================
 # PARALLEL FETCHER — both scrapers run at the SAME time
 # Total time = slowest single scraper (~1–2s), NOT the sum of both
@@ -385,8 +436,8 @@ def scrape_caraga_min_wage():
     return latest_wage  # returns 475.00
 
 # Usage
-wage = scrape_caraga_min_wage()
-print(f"Current Caraga Min Wage: ₱{wage}")
+# wage = scrape_caraga_min_wage()
+# print(f"Current Caraga Min Wage: ₱{wage}")
 
 
 def home(request):
@@ -407,12 +458,24 @@ def home(request):
         live_peso = get_live_peso_rate()
         cache.set('live_peso', live_peso, timeout=3600)
 
-    # Diesel price — from your DB (avg of Bislig & Tandag)
-    latest_diesel = TrainingData.objects.filter(
-    diesel_price__isnull=False
-    ).order_by('-date').first()
-    live_diesel_price = float(latest_diesel.diesel_price) if latest_diesel else None
-    live_diesel_date  = latest_diesel.date.strftime('%b %d, %Y') if latest_diesel else None
+    doe_avg_price, doe_period = get_latest_doe_diesel_average()
+    # Diesel price: use DOE average as default, farmer can override
+    live_diesel_price = doe_avg_price    # e.g. 98.38
+    if isinstance(doe_period, tuple) and len(doe_period) == 2:
+        start_date, end_date = doe_period
+        if hasattr(start_date, 'strftime') and hasattr(end_date, 'strftime'):
+            live_diesel_date = f"{start_date.strftime('%B %d')} to {end_date.strftime('%B %d, %Y')}" if start_date and end_date else "Unavailable"
+        else:
+            live_diesel_date = f"{start_date} to {end_date}" if start_date and end_date else "Unavailable"
+    else:
+        if hasattr(doe_period, 'strftime'):
+            live_diesel_date = doe_period.strftime('%B %d, %Y') if doe_period else "Unavailable"
+        else:
+            live_diesel_date = str(doe_period) if doe_period else "Unavailable"
+    context = {
+        'live_diesel_price': live_diesel_price,
+        'live_diesel_date':  live_diesel_date,
+    }
 
     # Labor min wage — cached 24 hours (changes rarely)
     live_labor_wage = cache.get('live_labor_wage')
@@ -469,12 +532,7 @@ def home(request):
                     price_predicted=predicted_price,
                 )
 
-                # ── Forecast Dates ──Back test
-                # forecast_start = (
-                #     latest_farmgate_date + timedelta(days=1)
-                #     if latest_farmgate_date
-                #     else datetime.now().date()
-                # )
+            
                 forecast_start = (
                     datetime.now().date() + timedelta(days=1)
                     if latest_farmgate_date
@@ -643,10 +701,10 @@ def home(request):
             except Exception as e:
                 messages.error(request, f'Forecast error: {str(e)}')
                 return redirect('home')
-        pass
-
     else:
-        form = ForecastForm()
+        form = ForecastForm(initial={
+            'diesel_price': live_diesel_price if live_diesel_price else None
+        })
 
     # -------- Page display section --------
     active_model = TrainedModel.objects.filter(is_active=True).first()
@@ -677,6 +735,10 @@ def home(request):
         'live_peso_date':  live_peso['date'] if live_peso['date'] else "Unavailable",
         'latest_farmgate_price':  latest_farmgate_price if latest_farmgate_price else None,
         'latest_farmgate_date':   latest_farmgate_date if latest_farmgate_date else None,
+        'live_diesel_price':      f"{live_diesel_price:.2f}" if live_diesel_price else None,
+        'live_diesel_date':       live_diesel_date,
+        'live_labor_wage':        live_labor_wage['wage'] if live_labor_wage else None,
+        'live_labor_wage_date':   live_labor_wage['period'] if live_labor_wage else None,
     })
 
 def recent_forecasts(request):

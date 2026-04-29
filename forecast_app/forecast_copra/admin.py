@@ -1,7 +1,13 @@
 import pandas as pd
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
-from .models import User, TrainingData, TrainedModel, ForecastLog, ExcelUpload
+from django.urls import path
+from django.shortcuts import render, redirect
+from django.template.response import TemplateResponse
+from django.http import HttpResponseRedirect
+from django.utils.safestring import mark_safe
+from .models import User, TrainingData, TrainedModel, ForecastLog, ExcelUpload, DOEDieselUpload, DOEDieselPrice
+from .doe_parser import parse_doe_pdf  # Import your parser
 
 
 @admin.register(TrainingData)
@@ -136,3 +142,111 @@ class ExcelUploadAdmin(admin.ModelAdmin):
             messages.success(request, f"✅ Successfully imported {count} rows into Training Data.")
         except Exception as e:
             messages.error(request, f"❌ Failed to process file: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# DOE Diesel PDF Upload Admin (with auto-parsing)
+# ═══════════════════════════════════════════════════════════════════
+
+@admin.register(DOEDieselUpload)
+class DOEDieselUploadAdmin(admin.ModelAdmin):
+    list_display = ['id', 'start_date', 'end_date', 'uploaded_at', 'processed', 'display_provincial_avg', 'price_count']
+    list_filter = ['processed', 'uploaded_at']
+    fields = ['pdf_file', 'start_date', 'end_date']
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-process PDF when saved"""
+        super().save_model(request, obj, form, change)
+        if not obj.processed:
+            self.process_pdf(obj, request)
+    
+    def process_pdf(self, upload, request):
+        """Process the PDF and extract prices"""
+        try:
+            # Read PDF file
+            pdf_bytes = upload.pdf_file.read()
+            
+            # Parse PDF using your parser
+            prices_data = parse_doe_pdf(pdf_bytes, upload.period_label)
+            
+            if not prices_data:
+                messages.warning(request, f'⚠ No price data found in {upload.pdf_file.name}')
+                upload.notes = 'No price data found in PDF'
+                upload.save()
+                return
+            
+            # Delete existing prices for this upload
+            upload.prices.all().delete()
+            
+            # Create new price entries (only average now)
+            for price_data in prices_data:
+                DOEDieselPrice.objects.create(
+                    upload=upload,
+                    municipality=price_data['municipality'],
+                    average=price_data['average'],
+                    period_label=upload.period_label,
+                    start_date=upload.start_date,
+                    end_date=upload.end_date
+                )
+            
+            # Calculate provincial average
+            averages = [p['average'] for p in prices_data if p['average']]
+            provincial_avg = sum(averages) / len(averages) if averages else 0
+            
+            # Mark as processed
+            upload.processed = True
+            upload.notes = f'✅ Success! Extracted {len(prices_data)} municipalities. Provincial Avg: ₱{provincial_avg:.2f}/L'
+            upload.save()
+            
+            # Success message
+            messages.success(
+                request, 
+                mark_safe(
+                    f'✅ <strong>Success!</strong> Extracted {len(prices_data)} municipalities.<br>'
+                    f'📊 <strong>Provincial Average: ₱{provincial_avg:.2f}/L</strong><br>'
+                    f'📅 Period: {upload.period_label or "Not specified"}'
+                )
+            )
+            
+        except Exception as e:
+            messages.error(request, f'❌ Error processing PDF: {str(e)}')
+            upload.notes = f'Error: {str(e)}'
+            upload.save()
+    
+    def display_provincial_avg(self, obj):
+        """Show provincial average in list view"""
+        if obj.processed:
+            prices = obj.prices.all()
+            if prices:
+                averages = [p.average for p in prices if p.average]
+                if averages:
+                    provincial_avg = sum(averages) / len(averages)
+                    return mark_safe(f'<strong style="color: #28a745;">₱{provincial_avg:.2f}/L</strong>')
+        return '—'
+    display_provincial_avg.short_description = 'Provincial Average'
+    
+    def price_count(self, obj):
+        return obj.prices.count()
+    price_count.short_description = '# Municipalities'
+
+
+@admin.register(DOEDieselPrice)
+class DOEDieselPriceAdmin(admin.ModelAdmin):
+    list_display = ['municipality', 'average', 'start_date', 'end_date', 'upload', 'created_at']  # Removed price_low and price_high
+    list_filter = ['municipality', 'upload', 'created_at']
+    search_fields = ['municipality', 'start_date', 'end_date']
+    readonly_fields = ['created_at']
+    list_per_page = 50
+    
+    fieldsets = (
+        ('Location', {
+            'fields': ('municipality', 'province')
+        }),
+        ('Price Information', {
+            'fields': ('average',)
+        }),
+        ('Metadata', {
+            'fields': ('upload', 'period_label', 'created_at'),
+            'classes': ('collapse',),
+        }),
+    )

@@ -1039,6 +1039,9 @@
   .text-\[11px\] {
     font-size: 11px;
   }
+  .text-\[15px\] {
+    font-size: 15px;
+  }
   .leading-relaxed {
     --tw-leading: var(--leading-relaxed);
     line-height: var(--leading-relaxed);

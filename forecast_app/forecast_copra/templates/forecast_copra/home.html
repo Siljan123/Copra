@@ -159,95 +159,96 @@
  
         <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/20 blur-3xl rounded-full"></div>
        {% if messages %}
-    <div class="container mt-3">
-        {% for message in messages %}
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div class="container mt-3">
+                {% for message in messages %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
             </div>
-        {% endfor %}
-    </div>
-{% endif %}
-        <form method="post" class="space-y-8">
+        {% endif %}
+    <form method="post" class="space-y-8">
             {% csrf_token %}
+            
             <div class="space-y-2 group">
-    <div class="flex justify-between items-center">
-        <label class="text-xs font-bold text-slate-200 uppercase tracking-widest">
-            Diesel Price (PHP/L)
-        </label>
-        <a href="https://doe.gov.ph/oil-industry/oil-price-monitoring"
-           target="_blank"
-           class="text-[10px] text-amber-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium">
-            DOE
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-            </svg>
-        </a>
-    </div>
+                <div class="flex justify-between items-center">
+                    <label class="text-xs font-bold text-slate-200 uppercase tracking-widest">
+                           Diesel Price per Liter
+                        </label>
+                        <a href="https://doe.gov.ph/articles/group/liquid-fuels?maincat=Retail%20Pump%20Prices&subcategory=Mindanao%20Pump%20Prices&display_type=Card"
+                        target="_blank"
+                        class="text-[10px] text-indigo-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium">
+                        https://doe.gov.ph
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                        </a>
+                    </div>
+                <!-- Live diesel price indicator -->
+                <p class="text-xs text-amber-400">
+                    {% if live_diesel_price %}
+                        Latest: <span class="font-bold text-emerald-400"> ₱{{ live_diesel_price }}/L</span>
+                        <span class="text-slate-500">as of {{ live_diesel_date }}</span>
+                    {% else %}
+                        <span class="text-slate-500">Auto-filled from database (surigao del sur)</span>
+                    {% endif %}
+                </p>
 
-    <!-- Live diesel price indicator -->
-    <p class="text-xs text-amber-400">
-        {% if live_diesel_price %}
-            Latest: <span class="font-bold text-emerald-400">₱{{ live_diesel_price }}/L</span>
-            <span class="text-slate-500">as of {{ live_diesel_date }}</span>
-        {% else %}
-            <span class="text-slate-500">Auto-filled from database (surigao del sur)</span>
-        {% endif %}
-    </p>
+                <input type="number" step="0.01" min="30" max="200"
+                    name="diesel_price" id="diesel_price"
+                    {% if live_diesel_price %}
+                        value="{{ live_diesel_price }}"
+                    {% else %}
+                        placeholder="Enter current diesel price (PHP/L)"
+                    {% endif %}
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-gray-400 outline-none transition-all focus:border-amber-500/50 input-gradient"
+                    onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
+                <p class="text-xs text-slate-500 mt-1">Average of  diesel prices in surigao del sur</p>
+            </div>
 
-    <input type="number" step="0.01" min="30" max="200"
-        name="diesel_price" id="diesel_price"
-        {% if live_diesel_price %}
-            value="{{ live_diesel_price }}"
-        {% else %}
-            placeholder="Enter current diesel price (PHP/L)"
-        {% endif %}
-        class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-gray-400 outline-none transition-all focus:border-amber-500/50 input-gradient"
-        onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
-    <p class="text-xs text-slate-500 mt-1">Average of  diesel prices in surigao del sur</p>
-</div>
+            <!-- Labor Min Wage Input -->
+            <div class="space-y-2 group">
+                <div class="flex justify-between items-center">
+                    <label class="text-xs font-bold text-slate-200 uppercase tracking-widest">
+                        Labor Min Wage (PHP/Day)
+                    </label>
+                    
+                    <a href="https://nwpc.dole.gov.ph/summary-of-daily-minimum-wage-rates-per-wage-order-by-region-non-agriculture-1989-present/"
+                    target="_blank"
+                    class="text-[10px] text-indigo-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium">
+                      https://nwpc.dole.gov.ph
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                </div>
 
-<!-- Labor Min Wage Input -->
-<div class="space-y-2 group">
-    <div class="flex justify-between items-center">
-        <label class="text-xs font-bold text-slate-200 uppercase tracking-widest">
-            Labor Min Wage (PHP/Day)
-        </label>
-        <a href="https://nwpc.dole.gov.ph/summary-of-daily-minimum-wage-rates-per-wage-order-by-region-non-agriculture-1989-present/"
-           target="_blank"
-           class="text-[10px] text-indigo-400 hover:text-emerald-400 transition-colors flex items-center gap-1 font-medium">
-            NWPC
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-            </svg>
-        </a>
-    </div>
+                <!-- Live wage indicator -->
+                <p class="text-xs text-indigo-400">
+                    {% if live_labor_wage %}
+                        Latest: <span class="font-bold text-emerald-400">₱{{ live_labor_wage }}/day</span>
+                        <span class="text-slate-500">Region XIII — WO {{ live_wage_order }}</span>
+                    {% else %}
+                        <span class="text-slate-500">Latest Caraga region minimum wage</span>
+                    {% endif %}
+                </p>
 
-    <!-- Live wage indicator -->
-    <p class="text-xs text-indigo-400">
-        {% if live_labor_wage %}
-            Latest: <span class="font-bold text-emerald-400">₱{{ live_labor_wage }}/day</span>
-            <span class="text-slate-500">Region XIII — WO {{ live_wage_order }}</span>
-        {% else %}
-            <span class="text-slate-500">Current Caraga region minimum wage</span>
-        {% endif %}
-    </p>
-
-    <input type="number" step="0.01" min="300" max="1000"
-        name="labor_min_wage" id="labor_min_wage"
-        {% if live_labor_wage %}
-            value="{{ live_labor_wage }}"
-        {% else %}
-            value="475.00"
-            placeholder="475.00"
-        {% endif %}
-        class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-gray-400 outline-none transition-all focus:border-indigo-500/50 input-gradient"
-        onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
-    <p class="text-xs text-slate-500 mt-1">Region XIII (Caraga) — Source: NWPC DOLE</p>
-</div>
-           <!-- Step 1: Global Price Input -->
+                <input type="number" step="0.01" min="300" max="1000"
+                    name="labor_min_wage" id="labor_min_wage"
+                    {% if live_labor_wage %}
+                        value="{{ live_labor_wage }}"
+                    {% else %}
+                        value="475.00"
+                        placeholder="475.00"
+                    {% endif %}
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-gray-400 outline-none transition-all focus:border-indigo-500/50 input-gradient"
+                    onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
+                <p class="text-xs text-slate-500 mt-1">Region XIII (Caraga) — Source: NWPC DOLE</p>
+            </div>
+            <!-- Step 1: Global Price Input -->
             <div class="space-y-2 group">
                 <div class="flex justify-between items-center">
                     <label class="text-xs font-bold text-slate-200 uppercase tracking-widest">
