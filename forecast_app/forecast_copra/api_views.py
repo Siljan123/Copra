@@ -326,12 +326,16 @@ def forecast_api(request):
         forecast_horizon = int(payload.get('forecast_horizon', 7))
         oil_price  = payload.get('oil_price_trend')
         peso_dollar = payload.get('peso_dollar_rate')
+        diesel_price = payload.get('diesel_price')
+        labor_min_wage = payload.get('labor_min_wage')
 
         if not oil_price or not peso_dollar:
             return Response({'success': False, 'error': 'Market data required'}, status=400)
 
         oil_price   = float(oil_price)
         peso_dollar = float(peso_dollar)
+        diesel_price = float(diesel_price) if diesel_price else None
+        labor_min_wage = float(labor_min_wage) if labor_min_wage else None
         oil_price_for_model = (oil_price * peso_dollar) / 1000 if oil_price > 1000 else oil_price
 
         active_model = TrainedModel.objects.filter(is_active=True).order_by('-training_date').first()
@@ -346,6 +350,8 @@ def forecast_api(request):
             use_latest_values=True,
             latest_oil=oil_price_for_model,
             latest_peso=peso_dollar,
+            latest_diesel=diesel_price,
+            latest_labor=labor_min_wage,
         )
 
         from datetime import timedelta
@@ -363,6 +369,8 @@ def forecast_api(request):
             forecast_horizon=forecast_horizon,
             farmer_input_oil_price_trend=round(oil_price_for_model, 2),
             farmer_input_peso_dollar_rate=round(peso_dollar, 2),
+            farmer_input_diesel_price=round(diesel_price, 2) if diesel_price else None,
+            farmer_input_labor_min_wage=round(labor_min_wage, 2) if labor_min_wage else None,
             price_predicted=predicted_price,
         )
 

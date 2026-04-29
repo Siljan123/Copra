@@ -20,12 +20,14 @@ class LoginForm(AuthenticationForm):
 class TrainingDataForm(forms.ModelForm):
     class Meta:
         model = TrainingData
-        fields = ['date', 'farmgate_price', 'oil_price_trend', 'peso_dollar_rate']
+        fields = ['date', 'farmgate_price', 'oil_price_trend', 'peso_dollar_rate', 'diesel_price', 'labor_min_wage']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'farmgate_price': forms.NumberInput(attrs={'class': 'form-control'}),
             'oil_price_trend': forms.NumberInput(attrs={'class': 'form-control'}),
             'peso_dollar_rate': forms.NumberInput(attrs={'class': 'form-control'}),
+            'diesel_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
+            'labor_min_wage': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Optional'}),
         }
 
 class ForecastForm(forms.Form):
@@ -41,6 +43,20 @@ class ForecastForm(forms.Form):
         decimal_places=2,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
     )
+    diesel_price = forms.DecimalField(
+        label='Diesel Price (₱/liter)',
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'Optional'})
+    )
+    labor_min_wage = forms.DecimalField(
+        label='Minimum Labor Wage',
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'Optional'})
+    )
     forecast_horizon = forms.IntegerField(
         label='Forecast Horizon (days)',
         min_value=1,
@@ -51,7 +67,7 @@ class ForecastForm(forms.Form):
 class ExcelUploadForm(forms.Form):
     excel_file = forms.FileField(
         label='Select Excel File',
-        help_text='Upload Excel file with columns: date, farmgate_price, oil_price_trend, peso_dollar_rate'
+        help_text='Upload Excel file with columns: date, farmgate_price, oil_price_trend, peso_dollar_rate, diesel_price (optional), labor_min_wage (optional)'
     )
     
     def clean_excel_file(self):

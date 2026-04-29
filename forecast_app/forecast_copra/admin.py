@@ -6,12 +6,12 @@ from .models import User, TrainingData, TrainedModel, ForecastLog, ExcelUpload
 
 @admin.register(TrainingData)
 class TrainingDataAdmin(admin.ModelAdmin):
-    list_display = ('date', 'farmgate_price', 'oil_price_trend', 'peso_dollar_rate')
+    list_display = ('date', 'farmgate_price', 'oil_price_trend', 'peso_dollar_rate', 'diesel_price', 'labor_min_wage')
     list_filter = ('date',)
     search_fields = ('date',)
     date_hierarchy = 'date'
     ordering = ('-date',)
-    list_editable = ('farmgate_price', 'oil_price_trend', 'peso_dollar_rate')
+    list_editable = ('farmgate_price', 'oil_price_trend', 'peso_dollar_rate', 'diesel_price', 'labor_min_wage')
     list_per_page = 25
     show_full_result_count = True
 
@@ -62,6 +62,8 @@ class ForecastLogAdmin(admin.ModelAdmin):
         'forecast_horizon',
         'farmer_input_oil_price_trend',
         'farmer_input_peso_dollar_rate',
+        'farmer_input_diesel_price',
+        'farmer_input_labor_min_wage',
         'price_predicted',
     )
     list_per_page = 30
@@ -71,7 +73,7 @@ class ForecastLogAdmin(admin.ModelAdmin):
             'fields': ('model_used', 'forecast_horizon', 'price_predicted')
         }),
         ('Farmer Inputs', {
-            'fields': ('farmer_input_oil_price_trend', 'farmer_input_peso_dollar_rate'),
+            'fields': ('farmer_input_oil_price_trend', 'farmer_input_peso_dollar_rate', 'farmer_input_diesel_price', 'farmer_input_labor_min_wage'),
             'classes': ('collapse',),
         }),
         ('Metadata', {
@@ -111,13 +113,21 @@ class ExcelUploadAdmin(admin.ModelAdmin):
             df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
             count = 0
             for _, row in df.iterrows():
+                # Build defaults dict with available columns
+                defaults = {
+                    'farmgate_price': row.get('farmgate_price'),
+                    'oil_price_trend': row.get('oil_price_trend'),
+                    'peso_dollar_rate': row.get('peso_dollar_rate'),
+                }
+                # Add new factors if present in Excel
+                if 'diesel_price' in row and pd.notna(row['diesel_price']):
+                    defaults['diesel_price'] = row['diesel_price']
+                if 'labor_min_wage' in row and pd.notna(row['labor_min_wage']):
+                    defaults['labor_min_wage'] = row['labor_min_wage']
+                
                 TrainingData.objects.update_or_create(
                     date=row['date'],
-                    defaults={
-                        'farmgate_price': row['farmgate_price'],
-                        'oil_price_trend': row['oil_price_trend'],
-                        'peso_dollar_rate': row['peso_dollar_rate'],
-                    }
+                    defaults=defaults
                 )
                 count += 1
             obj.processed = True

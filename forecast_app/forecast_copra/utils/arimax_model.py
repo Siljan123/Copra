@@ -37,7 +37,7 @@ class ARIMAXModel:
         df['date'] = pd.to_datetime(df['date'])
         
         #  Convert ALL numeric columns to float64 explicitly
-        numeric_columns = ['farmgate_price', 'oil_price_trend', 'peso_dollar_rate']
+        numeric_columns = ['farmgate_price', 'oil_price_trend', 'peso_dollar_rate', 'diesel_price', 'labor_min_wage']
         for col in numeric_columns:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -65,6 +65,18 @@ class ARIMAXModel:
                 df['peso_dollar_rate_lag1'] = df['peso_dollar_rate'].shift(1)   # previous record
                 df['peso_rate_ma7']   = df['peso_dollar_rate'].rolling(7, min_periods=1).mean()  # last 7 records
             
+            # Lagged diesel prices (1, 7 and 30 days ago)
+            if 'diesel_price' in df.columns:
+                df['diesel_price_lag1']  = df['diesel_price'].shift(1)          # previous record
+                df['diesel_price_ma7']   = df['diesel_price'].rolling(7, min_periods=1).mean()   # last 7 records
+                df['diesel_price_ma30']  = df['diesel_price'].rolling(30, min_periods=1).mean() # last 30 records
+            
+            # Lagged labor min wage (1, 7 and 30 days ago)
+            if 'labor_min_wage' in df.columns:
+                df['labor_min_wage_lag1']  = df['labor_min_wage'].shift(1)          # previous record
+                df['labor_min_wage_ma7']   = df['labor_min_wage'].rolling(7, min_periods=1).mean()   # last 7 records
+                df['labor_min_wage_ma30']  = df['labor_min_wage'].rolling(30, min_periods=1).mean() # last 30 records
+            
             # Ensure all new columns are float64
             lag_columns = [
                 'oil_price_lag1',
@@ -72,6 +84,12 @@ class ARIMAXModel:
                 'oil_price_ma30',
                 'peso_dollar_rate_lag1',
                 'peso_rate_ma7',
+                'diesel_price_lag1',
+                'diesel_price_ma7',
+                'diesel_price_ma30',
+                'labor_min_wage_lag1',
+                'labor_min_wage_ma7',
+                'labor_min_wage_ma30',
             ]
             
             for col in lag_columns:
@@ -132,15 +150,24 @@ class ARIMAXModel:
             'peso_dollar_rate_lag1', 
             'oil_price_ma7',         
             'oil_price_ma30',      
-            'peso_rate_ma7',        
-    
+            'peso_rate_ma7',
+            'diesel_price',
+            'diesel_price_lag1',
+            'diesel_price_ma7',
+            'diesel_price_ma30',
+            'labor_min_wage',
+            'labor_min_wage_lag1',
+            'labor_min_wage_ma7',
+            'labor_min_wage_ma30',
         ]
         # DEPLOYMENT: only statistically significant variables (p < 0.05)
         deployment_exog = [
             'oil_price_trend',    
             'peso_dollar_rate',   
             'oil_price_ma7',       
-            'oil_price_ma30',        
+            'oil_price_ma30',
+            'diesel_price',
+            'labor_min_wage',        
         ]
 
         # Choose variables based on mode
@@ -324,7 +351,7 @@ class ARIMAXModel:
         print(f"[LOAD] Order: {self.order}, Exog columns: {self.exog_columns}")
         
         return self.fitted_model
-    def forecast(self, steps=14, exog_future=None, use_latest_values=False, latest_oil=None, latest_peso=None):
+    def forecast(self, steps=14, exog_future=None, use_latest_values=False, latest_oil=None, latest_peso=None, latest_diesel=None, latest_labor=None):
         """Make future predictions"""
         if self.fitted_model is None:
             raise ValueError("Model not trained or loaded")
@@ -338,7 +365,9 @@ class ARIMAXModel:
                 exog_future = self.create_future_exog_with_latest(
                     steps=steps,
                     latest_oil=latest_oil,
-                    latest_peso=latest_peso
+                    latest_peso=latest_peso,
+                    latest_diesel=latest_diesel,
+                    latest_labor=latest_labor,
                 )
 
             if exog_future is None:
@@ -351,7 +380,7 @@ class ARIMAXModel:
         return forecast_result
 
 
-    def create_future_exog_with_latest(self, steps, latest_oil, latest_peso):
+    def create_future_exog_with_latest(self, steps, latest_oil, latest_peso, latest_diesel=None, latest_labor=None):
         """Build future exogenous variables with rolling moving averages"""
         if not self.exog_columns or self.last_date is None:
             return None
@@ -361,11 +390,19 @@ class ARIMAXModel:
             rolling_oil_7  = self.original_data['oil_price_trend'].iloc[-6:].tolist()   # last 6
             rolling_oil_30 = self.original_data['oil_price_trend'].iloc[-29:].tolist()  # last 29
             rolling_peso_7 = self.original_data['peso_dollar_rate'].iloc[-6:].tolist()  # last 6
+            rolling_diesel_7  = self.original_data['diesel_price'].iloc[-6:].tolist() if 'diesel_price' in self.original_data.columns else [latest_diesel or 0.0] * 6
+            rolling_diesel_30 = self.original_data['diesel_price'].iloc[-29:].tolist() if 'diesel_price' in self.original_data.columns else [latest_diesel or 0.0] * 29
+            rolling_labor_7  = self.original_data['labor_min_wage'].iloc[-6:].tolist() if 'labor_min_wage' in self.original_data.columns else [latest_labor or 0.0] * 6
+            rolling_labor_30 = self.original_data['labor_min_wage'].iloc[-29:].tolist() if 'labor_min_wage' in self.original_data.columns else [latest_labor or 0.0] * 29
         else:
             # Fallback if no historical data
             rolling_oil_7  = [latest_oil]  * 6
             rolling_oil_30 = [latest_oil]  * 29
             rolling_peso_7 = [latest_peso] * 6
+            rolling_diesel_7  = [latest_diesel or 0.0] * 6
+            rolling_diesel_30 = [latest_diesel or 0.0] * 29
+            rolling_labor_7  = [latest_labor or 0.0] * 6
+            rolling_labor_30 = [latest_labor or 0.0] * 29
 
         future_exog = []
 
@@ -382,10 +419,26 @@ class ARIMAXModel:
             rolling_peso_7.append(latest_peso)
             rolling_peso_7.pop(0)
 
+            rolling_diesel_7.append(latest_diesel or 0.0)
+            rolling_diesel_7.pop(0)
+
+            rolling_diesel_30.append(latest_diesel or 0.0)
+            rolling_diesel_30.pop(0)
+
+            rolling_labor_7.append(latest_labor or 0.0)
+            rolling_labor_7.pop(0)
+
+            rolling_labor_30.append(latest_labor or 0.0)
+            rolling_labor_30.pop(0)
+
             # ✅ Recalculate MAs for this step
             oil_ma7  = np.mean(rolling_oil_7)
             oil_ma30 = np.mean(rolling_oil_30)
             peso_ma7 = np.mean(rolling_peso_7)
+            diesel_ma7 = np.mean(rolling_diesel_7)
+            diesel_ma30 = np.mean(rolling_diesel_30)
+            labor_ma7 = np.mean(rolling_labor_7)
+            labor_ma30 = np.mean(rolling_labor_30)
 
             for col in self.exog_columns:
                 if col == 'oil_price_trend':
@@ -398,8 +451,20 @@ class ARIMAXModel:
                     exog_row.append(float(oil_ma30))
                 elif col == 'peso_rate_ma7':
                     exog_row.append(float(peso_ma7))
+                elif col == 'diesel_price':
+                    exog_row.append(float(latest_diesel if latest_diesel is not None else (self.last_known_exog[col].iloc[-1] if self.last_known_exog is not None and col in self.last_known_exog.columns else 0.0)))
+                elif col == 'diesel_price_ma7':
+                    exog_row.append(float(diesel_ma7))
+                elif col == 'diesel_price_ma30':
+                    exog_row.append(float(diesel_ma30))
+                elif col == 'labor_min_wage':
+                    exog_row.append(float(latest_labor if latest_labor is not None else (self.last_known_exog[col].iloc[-1] if self.last_known_exog is not None and col in self.last_known_exog.columns else 0.0)))
+                elif col == 'labor_min_wage_ma7':
+                    exog_row.append(float(labor_ma7))
+                elif col == 'labor_min_wage_ma30':
+                    exog_row.append(float(labor_ma30))
                 else:
-                    exog_row.append(float(self.last_known_exog[col].iloc[-1]))
+                    exog_row.append(float(self.last_known_exog[col].iloc[-1]) if self.last_known_exog is not None and col in self.last_known_exog.columns else 0.0)
 
             future_exog.append(exog_row)
 

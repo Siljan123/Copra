@@ -14,6 +14,8 @@ class TrainingData(models.Model):
     farmgate_price = models.DecimalField(max_digits=10, decimal_places=2)
     oil_price_trend = models.DecimalField(max_digits=10, decimal_places=2)
     peso_dollar_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    diesel_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Diesel price per liter")
+    labor_min_wage = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Minimum labor wage")
     
     class Meta:
         verbose_name_plural = "Training Data"
@@ -93,6 +95,8 @@ class ForecastLog(models.Model):
     forecast_horizon = models.IntegerField(help_text="Number of days to forecast")
     farmer_input_oil_price_trend = models.DecimalField(max_digits=10, decimal_places=2)
     farmer_input_peso_dollar_rate = models.DecimalField(max_digits=10, decimal_places=4)
+    farmer_input_diesel_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    farmer_input_labor_min_wage = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price_predicted = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     

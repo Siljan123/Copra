@@ -159,7 +159,7 @@
     </div>
 </div>
 
-{% if graph %}
+{% if  graph and not metrics.is_deployment %}
 <div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
     <div class="card-header bg-white py-3">
         <h5 class="mb-0 text-primary"><i class="fas fa-chart-line me-2"></i> Model Performance on Test Set</h5>
@@ -182,102 +182,86 @@
 {% endif %}
 
 <!--Enhanced Metrics Display with Validation and Test -->
-{% if metrics.aic %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0; padding: 2rem;">
+{% if metrics.aic and not metrics.is_deployment %}
+<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
     <div class="card-header bg-white py-3">
         <h5 class="mb-0 text-primary"><i class="fas fa-chart-bar me-2"></i> Model Performance Metrics</h5>
     </div>
-    <div class="card-body bg-light p-4">
-        <div class="row">
-            <!-- AIC Card -->
-            <div class="col-md-12 mb-3">
-                <div class="p-3 border rounded metric-subcard aic-subcard">
-                    <h6 class="text-muted mb-1">AIC (Akaike Information Criterion)</h6>
-                    <h4 class="mb-2">{{ metrics.aic|floatformat:2 }}</h4>
-                    <small class="text-secondary">
-                        Lower AIC indicates better model fit. Compare different (p,d,q) values to find optimal parameters.
-                    </small>
-                </div>
-            </div>
+    <div class="card-body p-0">
 
-            {% if not metrics.is_deployment %}
-            <!-- Validation Metrics (only for Excel training) -->
-            <div class="col-md-6 mb-3 p-4">
-                <div class="p-3 border rounded metric-subcard val-subcard" style="border-left: 4px solid #ff9800 !important;">
-                    <h6 class="mb-2">
-                        <span class="badge bg-warning text-dark">Validation Set</span>
-                    </h6>
-                    <p class="small text-muted mb-2">Used for hyperparameter tuning</p>
-                    <div class="d-flex flex-column small">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span><strong>MAE:</strong></span>
-                            <span class="text-end">{{ metrics.val_mae|floatformat:4 }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span><strong>RMSE:</strong></span>
-                            <span class="text-end">{{ metrics.val_rmse|floatformat:4 }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span><strong>MAPE:</strong></span>
-                            <span class="text-end">{{ metrics.val_mape|floatformat:2 }}%</span>
-                        </div>
-                    </div>
-                </div>
+        <!-- AIC Row -->
+        <div style="padding: 14px 20px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 14px; background: #e3f2fd; flex-wrap: wrap;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #1976d2; flex-shrink: 0;"></div>
+            <div style="flex: 1; min-width: 150px;">
+                <p style="font-size: 12px; color: #555; margin: 0 0 2px; text-transform: uppercase; letter-spacing: 0.06em;">AIC (Akaike Information Criterion)</p>
+                <p style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 0; line-height: 1.2;">{{ metrics.aic|floatformat:2 }}</p>
             </div>
-
-            <!-- Test Metrics (only for Excel training) -->
-            <div class="col-md-6 mb-3">
-                <div class="p-3 border rounded metric-subcard test-subcard" style="border-left: 4px solid #4CAF50 !important;">
-                    <h6 class="mb-2">
-                        <span class="badge bg-success">Test Set (Final)</span>
-                    </h6>
-                    <p class="small text-muted mb-2">Unbiased final evaluation</p>
-                    <div class="d-flex flex-column small">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span><strong>MAE:</strong></span>
-                            <span class="text-end">{{ metrics.mae|floatformat:4 }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span><strong>RMSE:</strong></span>
-                            <span class="text-end">{{ metrics.rmse|floatformat:4 }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span><strong>MAPE:</strong></span>
-                            <span class="text-end">{{ metrics.mape|floatformat:2 }}%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Interpretation Guide -->
-            <div class="col-md-12">
-                <div class="alert alert-info mb-0" style="font-size: 0.9em;">
-                    <strong>📊 How to interpret:</strong>
-                    <ul class="mb-0 mt-2">
-                        <li><strong>Validation metrics</strong> help you choose the best (p,d,q). If validation error is much higher than training, you may be overfitting.</li>
-                        <li><strong>Test metrics</strong> show true model performance on unseen data. Use these for final model comparison.</li>
-                        <li><strong>MAPE</strong> (Mean Absolute Percentage Error): Lower is better. <5% is excellent, 5-10% is good, >20% needs improvement.</li>
-                        <li><strong>MAE/RMSE</strong>: Measure average prediction error in actual price units.</li>
-                    </ul>
-                </div>
-            </div>
-            {% else %}
-            <!-- Deployment Metrics (100% training data) -->
-            <div class="col-md-12">
-                <div class="p-3 border rounded metric-subcard deploy-subcard" style="border-left: 4px solid #2196F3 !important;">
-                    <h6 class="mb-2">
-                        <span class="badge bg-primary">Deployment Mode (In-Sample Metrics)</span>
-                    </h6>
-                    <p class="small text-muted mb-2">Trained on 100% of database - no hold-out test set</p>
-                </div>
-            </div>
-            {% endif %}
+            <p style="font-size: 12px; color: #777; margin: 0; max-width: 220px; line-height: 1.5;">Lower = better fit. Compare (p,d,q) combinations to minimise.</p>
         </div>
+
+        <!-- Validation + Test Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+
+            <!-- Validation Set -->
+            <div style="padding: 18px 20px; border-right: 1px solid #e0e0e0; background: #fff8e1;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <div style="width: 4px; height: 16px; border-radius: 2px; background: #ff9800;"></div>
+                    <span style="font-size: 11px; font-weight: 700; color: #e65100; text-transform: uppercase; letter-spacing: 0.07em;">Validation Set</span>
+                </div>
+                <p style="font-size: 12px; color: #888; margin: 0 0 14px;">Hyperparameter tuning</p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 13px; color: #555;">MAE</span>
+                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.val_mae|floatformat:4 }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 13px; color: #555;">RMSE</span>
+                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.val_rmse|floatformat:4 }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #ffe0b2;">
+                        <span style="font-size: 13px; color: #555;">MAPE</span>
+                        <span style="font-size: 16px; font-weight: 700; color: #e65100;">{{ metrics.val_mape|floatformat:2 }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Set -->
+            <div style="padding: 18px 20px; background: #f1f8e9;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <div style="width: 4px; height: 16px; border-radius: 2px; background: #4CAF50;"></div>
+                    <span style="font-size: 11px; font-weight: 700; color: #2e7d32; text-transform: uppercase; letter-spacing: 0.07em;">Test Set (Final)</span>
+                </div>
+                <p style="font-size: 12px; color: #888; margin: 0 0 14px;">Unbiased final evaluation</p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 13px; color: #555;">MAE</span>
+                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.mae|floatformat:4 }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 13px; color: #555;">RMSE</span>
+                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.rmse|floatformat:4 }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #c8e6c9;">
+                        <span style="font-size: 13px; color: #555;">MAPE</span>
+                        <span style="font-size: 16px; font-weight: 700; color: #2e7d32;">{{ metrics.mape|floatformat:2 }}%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer Guide -->
+        <div style="padding: 10px 20px; background: #f5f5f5; border-top: 1px solid #e0e0e0;">
+            <p style="font-size: 12px; color: #888; margin: 0; line-height: 1.6;">
+                MAPE guide: &lt;5% excellent &nbsp;&middot;&nbsp; 5–10% good &nbsp;&middot;&nbsp; 10–20% fair &nbsp;&middot;&nbsp; &gt;20% needs improvement &nbsp;&middot;&nbsp; MAE/RMSE measured in &#8369;
+            </p>
+        </div>
+
     </div>
 </div>
 {% endif %}
 
-{% if comparison_rows %}
+{% if comparison_rows and not metrics.is_deployment %}
 <div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0; padding: 1rem;">
     <div class="card-header bg-white py-3">
         <h5 class="mb-0 text-primary"><i class="fas fa-table me-2"></i> Actual vs Predicted (Test Set)</h5>
@@ -315,7 +299,7 @@
 </div>
 {% endif %}
 {% comment %} Diagnose {% endcomment %}
-{% if raw_series_graph %}
+{% if raw_series_graph and not metrics.is_deployment %}
 <div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #2196F3;">
     <div class="card-header bg-primary text-white py-3">
         <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i> Step 1: Raw Time Series & Stationarity Check</h5>
@@ -336,7 +320,7 @@
     </div>
 </div>
 {% endif %}
-{% if diagnostic_graph %}
+{% if diagnostic_graph and not metrics.is_deployment %}
 <div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #607d8b; background: white;">
     <div class="card-header bg-dark text-white py-3">
         <h5 class="mb-0"><i class="fas fa-search me-2"></i> Model Parameter Identification (ACF & PACF)</h5>

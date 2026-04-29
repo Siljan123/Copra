@@ -313,12 +313,13 @@ def get_all_live_data():
     Usage in views.py:
         live_market, live_peso = get_all_live_data()
     """
-    results = {"oil": None, "peso": None}
- 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    results = {"oil": None, "peso": None, "wage": None}
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {
             executor.submit(get_live_coconut_oil_price): "oil",
             executor.submit(get_live_peso_rate):         "peso",
+            executor.submit(scrape_caraga_min_wage):     "wage",
         }
         for future in as_completed(futures):
             key = futures[future]
@@ -338,6 +339,56 @@ def get_all_live_data():
 # PUBLIC VIEWS
 # ====================
 
+def scrape_caraga_min_wage():
+    url = "https://nwpc.dole.gov.ph/summary-of-daily-minimum-wage-rates-per-wage-order-by-region-non-agriculture-1989-present/"
+    
+    response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+    soup = BeautifulSoup(response.content, "html.parser")
+    
+    # Find all table rows
+    rows = soup.find_all("tr")
+    
+    caraga_rows = []
+    in_caraga = False
+    
+    for row in rows:
+        cells = [td.get_text(strip=True) for td in row.find_all("td")]
+        
+        if not cells:
+            continue
+        
+        # Detect CARAGA section
+        if any("CARAGA" in c or "XIII" in c for c in cells):
+            in_caraga = True
+        
+        # Stop at next region
+        if in_caraga and any("ARMM" in c or "BARMM" in c for c in cells):
+            break
+        
+        if in_caraga and cells:
+            caraga_rows.append(cells)
+    
+    # Get the last row with a wage value
+    latest_wage = None
+    for row in reversed(caraga_rows):
+        for cell in reversed(row):
+            try:
+                val = float(cell.replace(",", ""))
+                if 300 < val < 1000:  # reasonable wage range
+                    latest_wage = val
+                    break
+            except ValueError:
+                continue
+        if latest_wage:
+            break
+    
+    return latest_wage  # returns 475.00
+
+# Usage
+wage = scrape_caraga_min_wage()
+print(f"Current Caraga Min Wage: ₱{wage}")
+
+
 def home(request):
     """Home page with forecast form"""
 
@@ -349,12 +400,25 @@ def home(request):
     live_market = cache.get('live_market')
     if not live_market:
         live_market = get_live_coconut_oil_price()
-        cache.set('live_market', live_market, timeout=3600)  # cache 1 hour
+        cache.set('live_market', live_market, timeout=3600)
 
     live_peso = cache.get('live_peso')
     if not live_peso:
         live_peso = get_live_peso_rate()
         cache.set('live_peso', live_peso, timeout=3600)
+
+    # Diesel price — from your DB (avg of Bislig & Tandag)
+    latest_diesel = TrainingData.objects.filter(
+    diesel_price__isnull=False
+    ).order_by('-date').first()
+    live_diesel_price = float(latest_diesel.diesel_price) if latest_diesel else None
+    live_diesel_date  = latest_diesel.date.strftime('%b %d, %Y') if latest_diesel else None
+
+    # Labor min wage — cached 24 hours (changes rarely)
+    live_labor_wage = cache.get('live_labor_wage')
+    if not live_labor_wage:
+        live_labor_wage = scrape_caraga_min_wage()
+        cache.set('live_labor_wage', live_labor_wage, timeout=86400)  # 24 hours
     # -------- Handle form submission --------
     if request.method == 'POST':
         form = ForecastForm(request.POST)
@@ -374,6 +438,8 @@ def home(request):
                 # ── Get User Inputs ──────────────────────────────────────
                 oil_price        = float(form.cleaned_data['oil_price_trend'])
                 peso_dollar      = float(form.cleaned_data['peso_dollar_rate'])
+                diesel_price     = form.cleaned_data.get('diesel_price')
+                labor_min_wage   = form.cleaned_data.get('labor_min_wage')
                 forecast_horizon = int(form.cleaned_data['forecast_horizon'])
 
                 # ── Run Forecast ─────────────────────────────────────────
@@ -382,6 +448,8 @@ def home(request):
                     use_latest_values=True,
                     latest_oil=oil_price,
                     latest_peso=peso_dollar,
+                    latest_diesel=float(diesel_price) if diesel_price else None,
+                    latest_labor=float(labor_min_wage) if labor_min_wage else None,
                 )
 
                 # ── Extract Final Predicted Price ────────────────────────
@@ -396,6 +464,8 @@ def home(request):
                     forecast_horizon=forecast_horizon,
                     farmer_input_oil_price_trend=oil_price,
                     farmer_input_peso_dollar_rate=peso_dollar,
+                    farmer_input_diesel_price=float(diesel_price) if diesel_price else None,
+                    farmer_input_labor_min_wage=float(labor_min_wage) if labor_min_wage else None,
                     price_predicted=predicted_price,
                 )
 
@@ -717,7 +787,9 @@ def manage_data(request):
                                     date=item['date'],
                                     farmgate_price=item['farmgate_price'],
                                     oil_price_trend=item['oil_price_trend'],
-                                    peso_dollar_rate=item['peso_dollar_rate']
+                                    peso_dollar_rate=item['peso_dollar_rate'],
+                                    diesel_price=item.get('diesel_price'),
+                                    labor_min_wage=item.get('labor_min_wage')
                                 )
                                 saved_count += 1
                         
@@ -1087,7 +1159,9 @@ def process_excel_file(file_path):
             'date': ['date', 'dates', 'day', 'days'],
             'farmgate_price': ['farmgate_price', 'price', 'farmgate', 'farmgate price', 'farmgate_price', 'farmgateprice'],
             'oil_price_trend': ['oil_price_trend', 'oil price', 'oil', 'oil trend', 'oil_price', 'oilprice'],
-            'peso_dollar_rate': ['peso_dollar_rate', 'exchange rate', 'peso dollar', 'exchange', 'peso_dollar', 'pesodollar']
+            'peso_dollar_rate': ['peso_dollar_rate', 'exchange rate', 'peso dollar', 'exchange', 'peso_dollar', 'pesodollar'],
+            'diesel_price': ['diesel_price', 'diesel price', 'diesel'],
+            'labor_min_wage': ['labor_min_wage', 'labor wage', 'labor_minimum_wage', 'minimum_wage', 'labor wage']
         }
         
         # Try to map columns
@@ -1181,11 +1255,28 @@ def process_excel_file(file_path):
                 except (ValueError, TypeError):
                     peso_dollar_rate = 0.0
                 
+                diesel_price = None
+                labor_min_wage = None
+                if 'diesel_price' in actual_columns:
+                    try:
+                        val = row[actual_columns['diesel_price']]
+                        diesel_price = float(val) if not pd.isna(val) else None
+                    except (ValueError, TypeError):
+                        diesel_price = None
+                if 'labor_min_wage' in actual_columns:
+                    try:
+                        val = row[actual_columns['labor_min_wage']]
+                        labor_min_wage = float(val) if not pd.isna(val) else None
+                    except (ValueError, TypeError):
+                        labor_min_wage = None
+
                 processed_data.append({
                     'date': date_obj,
                     'farmgate_price': farmgate_price,
                     'oil_price_trend': oil_price_trend,
-                    'peso_dollar_rate': peso_dollar_rate
+                    'peso_dollar_rate': peso_dollar_rate,
+                    'diesel_price': diesel_price,
+                    'labor_min_wage': labor_min_wage,
                 })
                 
             except Exception as e:
