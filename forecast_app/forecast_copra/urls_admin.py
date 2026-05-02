@@ -12,6 +12,7 @@ urlpatterns = [
     path('model/<int:model_id>/activate/', views.activate_model, name='activate_model'),
     path('model/<int:model_id>/deactivate/', views.deactivate_model, name='deactivate_model'),
     path('model/<int:model_id>/delete/', views.delete_model, name='delete_model'),
+    path('models/bulk-delete/', views.bulk_delete_models, name='bulk_delete_models'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

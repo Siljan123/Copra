@@ -20,6 +20,7 @@ urlpatterns = [
     path('admin-panel/model/<int:model_id>/activate/', views.activate_model, name='activate_model'),
     path('admin-panel/model/<int:model_id>/deactivate/', views.deactivate_model, name='deactivate_model'),
     path('admin-panel/model/<int:model_id>/delete/', views.delete_model, name='delete_model'),
+    path('admin-panel/models/bulk-delete/', views.bulk_delete_models, name='bulk_delete_models'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

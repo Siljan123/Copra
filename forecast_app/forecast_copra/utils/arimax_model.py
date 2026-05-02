@@ -67,13 +67,11 @@ class ARIMAXModel:
             
             # Lagged diesel prices (1, 7 and 30 days ago)
             if 'diesel_price' in df.columns:
-                df['diesel_price_lag1']  = df['diesel_price'].shift(1)          # previous record
                 df['diesel_price_ma7']   = df['diesel_price'].rolling(7, min_periods=1).mean()   # last 7 records
                 df['diesel_price_ma30']  = df['diesel_price'].rolling(30, min_periods=1).mean() # last 30 records
             
             # Lagged labor min wage (1, 7 and 30 days ago)
             if 'labor_min_wage' in df.columns:
-                df['labor_min_wage_lag1']  = df['labor_min_wage'].shift(1)          # previous record
                 df['labor_min_wage_ma7']   = df['labor_min_wage'].rolling(7, min_periods=1).mean()   # last 7 records
                 df['labor_min_wage_ma30']  = df['labor_min_wage'].rolling(30, min_periods=1).mean() # last 30 records
             
@@ -84,10 +82,8 @@ class ARIMAXModel:
                 'oil_price_ma30',
                 'peso_dollar_rate_lag1',
                 'peso_rate_ma7',
-                'diesel_price_lag1',
                 'diesel_price_ma7',
                 'diesel_price_ma30',
-                'labor_min_wage_lag1',
                 'labor_min_wage_ma7',
                 'labor_min_wage_ma30',
             ]
@@ -96,14 +92,7 @@ class ARIMAXModel:
                 if col in df.columns:
                     df[col] = df[col].astype('float64')
             
-            initial_rows = len(df)
-            df = df.dropna()
-            dropped_rows = initial_rows - len(df)
-            if dropped_rows > 0:
-                print(f"[PREPARE] Dropped {dropped_rows} rows due to lagging/rolling operations")
         
-        # Reset index
-        df = df.reset_index(drop=True)
         
         # Final validation: ensure all numeric columns are float64
         for col in df.columns:
@@ -125,9 +114,35 @@ class ARIMAXModel:
         - is_deployment = True → train on 100% of data for production
         """
         df = self.prepare_data(training_data, create_lags=True)
+        df = self.prepare_data(training_data, create_lags=True)
+
+        # DEBug
+        print("[DEBUG] diesel_price unique:", df['diesel_price'].nunique() if 'diesel_price' in df.columns else 'NOT FOUND')
+        print("[DEBUG] labor_min_wage unique:", df['labor_min_wage'].nunique() if 'labor_min_wage' in df.columns else 'NOT FOUND')
+        print("[DEBUG] diesel sample:", df['diesel_price'].head(5).tolist() if 'diesel_price' in df.columns else 'NOT FOUND')
+        print("[DEBUG] wage sample:", df['labor_min_wage'].head(5).tolist() if 'labor_min_wage' in df.columns else 'NOT FOUND')
         
         # Store original data for future forecasting
         self.original_data = df.copy()
+        
+        required_columns = [
+        'farmgate_price',
+        'oil_price_trend',
+        'peso_dollar_rate',
+        'diesel_price',
+        'labor_min_wage',
+        ]
+
+        # Add diesel and wage only if needed for evaluation mode
+        if not is_deployment:
+            required_columns += ['diesel_price', 'labor_min_wage']
+
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if missing_cols:
+            return {
+                "error": f"Missing required columns: {missing_cols}. "
+                        f"Please include them in your dataset."
+            }
         
         if len(df) < 100:
             return {"error": "Insufficient data. Need at least 100 records."}
@@ -152,12 +167,9 @@ class ARIMAXModel:
             'oil_price_ma30',      
             'peso_rate_ma7',
             'diesel_price',
-            'diesel_price_lag1',
             'diesel_price_ma7',
             'diesel_price_ma30',
             'labor_min_wage',
-            'labor_min_wage_lag1',
-            'labor_min_wage_ma7',
             'labor_min_wage_ma30',
         ]
         # DEPLOYMENT: only statistically significant variables (p < 0.05)
@@ -166,8 +178,11 @@ class ARIMAXModel:
             'peso_dollar_rate',   
             'oil_price_ma7',       
             'oil_price_ma30',
-            'diesel_price',
-            'labor_min_wage',        
+            # 'diesel_price',
+            # 'diesel_price_ma7',
+            # 'diesel_price_ma30',
+            'labor_min_wage',    
+            # 'labor_min_wage_ma30',    
         ]
 
         # Choose variables based on mode
@@ -175,16 +190,20 @@ class ARIMAXModel:
         
         valid_exog_columns = [
             col for col in exog_to_use
-            if col in df.columns and df[col].nunique() > 1
+            if col in df.columns 
+            and df[col].notna().any()  # ✅ include if at least 1 non-null value
         ]
         
         self.exog_columns = valid_exog_columns
         print(f"[TRAIN] Mode: {'DEPLOYMENT' if is_deployment else 'EVALUATION'}")
         print(f"[TRAIN] Using exogenous variables: {self.exog_columns}")
         
+        
         exog = None
         if self.exog_columns:
             exog = df[self.exog_columns].copy()
+            exog = exog.bfill().ffill()
+
             self.last_known_exog = exog.iloc[-30:].copy()
             self.last_date = df.index[-1]
         
@@ -259,8 +278,14 @@ class ARIMAXModel:
                 print(f"[EVALUATION] Test  - Mean: {test_endog_array.mean():.2f}, Std: {test_endog_array.std():.2f}")
                 
                 # Train on train split
-                self.model = ARIMA(train_endog_array, exog=train_exog_array, order=self.order)
-                self.fitted_model = self.model.fit()
+              
+                self.model = ARIMA(
+                train_endog_array,      #  yₜ (copra price the variable want to forecast)
+                exog=train_exog_array,  # βX terms (external factors)
+                order=self.order        # (p, d, q) = Φₚ(B), (1-B)ᵈ, Θq(B)
+                )
+                
+                self.fitted_model = self.model.fit() # α,  φ and Θ coefficients are automatically estimated 
                 
                 print(f"[EVALUATION] Model fitted. AIC: {self.fitted_model.aic:.2f}")
                 
@@ -431,7 +456,6 @@ class ARIMAXModel:
             rolling_labor_30.append(latest_labor or 0.0)
             rolling_labor_30.pop(0)
 
-            # ✅ Recalculate MAs for this step
             oil_ma7  = np.mean(rolling_oil_7)
             oil_ma30 = np.mean(rolling_oil_30)
             peso_ma7 = np.mean(rolling_peso_7)

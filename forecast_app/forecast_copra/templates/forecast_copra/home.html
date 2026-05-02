@@ -171,7 +171,7 @@
     <form method="post" class="space-y-8">
             {% csrf_token %}
             
-            <div class="space-y-2 group">
+            {% comment %} <div class="space-y-2 group">
                 <div class="flex justify-between items-center">
                     <label class="text-xs font-bold text-slate-200 uppercase tracking-widest">
                            Diesel Price per Liter
@@ -206,7 +206,7 @@
                     class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-gray-400 outline-none transition-all focus:border-amber-500/50 input-gradient"
                     onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
                 <p class="text-xs text-slate-500 mt-1">Average of  diesel prices in surigao del sur</p>
-            </div>
+            </div> {% endcomment %}
 
             <!-- Labor Min Wage Input -->
             <div class="space-y-2 group">
@@ -383,6 +383,7 @@
                     <option value="5">5-Days</option>
                     <option value="7">7-Days</option>
                     <option value="14">14-Day</option>
+                    <option value="30">30-Day</option>
                 </select>
             </div>
 

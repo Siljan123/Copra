@@ -46,7 +46,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
 from .forms import ExcelUploadForm, LoginForm, TrainingDataForm, ForecastForm
 from .models import TrainingData, TrainedModel, ForecastLog, ExcelUpload
+from requests.exceptions import ConnectionError, Timeout, RequestException
 from .utils.arimax_model import ARIMAXModel
+
 
 
 def parse_period_to_date(period_label):
@@ -393,52 +395,72 @@ def get_all_live_data():
 def scrape_caraga_min_wage():
     url = "https://nwpc.dole.gov.ph/summary-of-daily-minimum-wage-rates-per-wage-order-by-region-non-agriculture-1989-present/"
     
-    response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        response = requests.get(
+            url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=10
+        )
+        response.raise_for_status()
+
+    except ConnectionError:
+        print("Could not reach DOLE website. Using fallback wage.")
+        return 475.00
+    except Timeout:
+        print("Request timed out.")
+        return 475.00
+    except RequestException as e:
+        print(f"Request failed: {e}")
+        return 475.00
+
+    # ✅ Reuse the SAME response — no second request!
     soup = BeautifulSoup(response.content, "html.parser")
-    
-    # Find all table rows
+
     rows = soup.find_all("tr")
-    
     caraga_rows = []
     in_caraga = False
-    
+
     for row in rows:
         cells = [td.get_text(strip=True) for td in row.find_all("td")]
-        
         if not cells:
             continue
-        
-        # Detect CARAGA section
         if any("CARAGA" in c or "XIII" in c for c in cells):
             in_caraga = True
-        
-        # Stop at next region
         if in_caraga and any("ARMM" in c or "BARMM" in c for c in cells):
             break
-        
         if in_caraga and cells:
             caraga_rows.append(cells)
-    
-    # Get the last row with a wage value
+
     latest_wage = None
     for row in reversed(caraga_rows):
         for cell in reversed(row):
             try:
                 val = float(cell.replace(",", ""))
-                if 300 < val < 1000:  # reasonable wage range
+                if 300 < val < 1000:
                     latest_wage = val
                     break
             except ValueError:
                 continue
         if latest_wage:
             break
-    
-    return latest_wage  # returns 475.00
 
-# Usage
-# wage = scrape_caraga_min_wage()
-# print(f"Current Caraga Min Wage: ₱{wage}")
+    return latest_wage
 
+def get_min_wage():
+    from django.utils import timezone
+    from datetime import timedelta
+
+    # 1. Try database first (fast)
+    latest = TrainingData.objects.filter(
+        labor_min_wage__isnull=False
+    ).order_by('-date').first()
+
+    # 2. Only scrape if data is older than 30 days
+    if not latest or latest.date < (timezone.now().date() - timedelta(days=30)):
+        wage = scrape_caraga_min_wage()  # scrape only when needed
+        return wage or 475.00
+
+    return float(latest.labor_min_wage)
 
 def home(request):
     """Home page with forecast form"""
@@ -477,11 +499,12 @@ def home(request):
         'live_diesel_date':  live_diesel_date,
     }
 
-    # Labor min wage — cached 24 hours (changes rarely)
-    live_labor_wage = cache.get('live_labor_wage')
-    if not live_labor_wage:
-        live_labor_wage = scrape_caraga_min_wage()
-        cache.set('live_labor_wage', live_labor_wage, timeout=86400)  # 24 hours
+
+    labor_min_wage = get_min_wage()
+    form = ForecastForm(initial={
+    'diesel_price':   live_diesel_price if live_diesel_price else None,
+    'labor_min_wage': labor_min_wage,
+    })
     # -------- Handle form submission --------
     if request.method == 'POST':
         form = ForecastForm(request.POST)
@@ -533,12 +556,17 @@ def home(request):
                 )
 
             
+                # forecast_start = (
+                #     datetime.now().date() + timedelta(days=1)
+                #     if latest_farmgate_date
+                #     else datetime.now().date()
+                # )
+                 # ── Forecast Dates ──Back test
                 forecast_start = (
-                    datetime.now().date() + timedelta(days=1)
+                    latest_farmgate_date + timedelta(days=1)
                     if latest_farmgate_date
                     else datetime.now().date()
                 )
-
                 forecast_dates = pd.date_range(
                     start=forecast_start,
                     periods=forecast_horizon,
@@ -704,6 +732,7 @@ def home(request):
     else:
         form = ForecastForm(initial={
             'diesel_price': live_diesel_price if live_diesel_price else None
+            
         })
 
     # -------- Page display section --------
@@ -737,8 +766,7 @@ def home(request):
         'latest_farmgate_date':   latest_farmgate_date if latest_farmgate_date else None,
         'live_diesel_price':      f"{live_diesel_price:.2f}" if live_diesel_price else None,
         'live_diesel_date':       live_diesel_date,
-        'live_labor_wage':        live_labor_wage['wage'] if live_labor_wage else None,
-        'live_labor_wage_date':   live_labor_wage['period'] if live_labor_wage else None,
+        'labor_min_wage': labor_min_wage,
     })
 
 def recent_forecasts(request):
@@ -1133,6 +1161,43 @@ def trained_models_view(request):
         "models_for_chart": models_for_chart,
     })
     
+@login_required
+def bulk_delete_models(request):
+    """Delete multiple trained models selected by the admin."""
+    if not request.user.is_staff:
+        messages.error(request, 'Only admin users can perform this action.')
+        return redirect('trained_models_view')
+
+    if request.method == 'POST':
+        selected_ids = request.POST.getlist('selected_models')
+        if not selected_ids:
+            messages.warning(request, 'No models were selected for deletion.')
+            return redirect('trained_models_view')
+
+        deleted_count = 0
+        for model_id in selected_ids:
+            try:
+                model = TrainedModel.objects.get(id=model_id)
+                model_name = model.name
+                model_path = model.model_file_path
+
+                if model_path and os.path.exists(model_path):
+                    try:
+                        os.remove(model_path)
+                    except Exception as e:
+                        print(f"Warning: Could not delete model file {model_path}: {e}")
+
+                model.delete()
+                deleted_count += 1
+            except TrainedModel.DoesNotExist:
+                continue
+            except Exception as e:
+                print(f"Warning: could not delete model {model_id}: {e}")
+
+        messages.success(request, f'🗑️ Deleted {deleted_count} trained model(s).')
+
+    return redirect('trained_models_view')
+
 @login_required
 def activate_model(request, model_id):
     """Activate a trained model"""
