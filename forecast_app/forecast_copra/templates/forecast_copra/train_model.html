@@ -320,6 +320,18 @@
     </div>
 </div>
 {% endif %}
+
+{% if diff_series_graph and not metrics.is_deployment %}
+<div class="card mb-4 shadow-sm" style="border-radius: 12px; border: 1px solid #ff9800;">
+    <div class="card-header text-white py-3" style="background-color: #ff9800;">
+        <h5 class="mb-0"><i class="fas fa-wave-square me-2"></i> &nbsp; Differenced Farmgate Price (d={{ d }})</h5>
+    </div>
+    <div class="card-body text-center bg-light">
+        <img src="data:image/png;base64,{{ diff_series_graph }}" class="img-fluid rounded" style="width: 100%; border: 1px solid #eee;">
+    </div>
+</div>
+{% endif %}
+
 {% if diagnostic_graph and not metrics.is_deployment %}
 <div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #607d8b; background: white;">
     <div class="card-header bg-dark text-white py-3">
@@ -348,6 +360,7 @@
     </div>
 </div>
 {% endif %}
+
 
 <style>
     .training-options {

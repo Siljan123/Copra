@@ -922,6 +922,7 @@ def train_model(request):
     """Train ARIMAX model with ACF/PACF Diagnostics & Model Saving"""
     graph_base64 = None 
     diagnostic_graph = None
+    diff_series_graph = None
     metrics = {}
     raw_series_graph = None
     comparison_rows = []
@@ -963,33 +964,75 @@ def train_model(request):
             
         if processed_data and len(processed_data) > 0 and 'diagnose' in request.POST:
             try:
-                df_raw = pd.DataFrame(processed_data)
-                df_raw['date'] = pd.to_datetime(df_raw['date'])
-                df_raw = df_raw.sort_values('date')
+                df = pd.DataFrame(processed_data)
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.sort_values('date').reset_index(drop=True)
 
-                fig, axes = plt.subplots(2, 1, figsize=(12, 6))
+                raw_columns = {
+                    'farmgate_price': 'Farmgate Price',
+                    'oil_price_trend': 'Oil Price Trend',
+                    'peso_dollar_rate': 'Peso Dollar Rate',
+                    'diesel_price': 'Diesel Price',
+                    'labor_min_wage': 'Labor Minimum Wage',
+                }
 
-                # Plot 1: Raw Series
-                axes[0].plot(df_raw['date'], df_raw['farmgate_price'],
-                    color='#2980b9', linewidth=1.5)
-                axes[0].set_title('Raw Time Series: Farmgate Price (Before Differencing)')
-                axes[0].set_ylabel('Price (₱)')
-                axes[0].grid(True, alpha=0.3)
+                colors = ['steelblue', 'tomato', 'seagreen', 'darkorange', 'mediumpurple']
 
-                # Plot 2: Differenced Series
-                differenced = df_raw['farmgate_price'].diff(d).dropna()
-                axes[1].plot(differenced.values, color='#e67e22', linewidth=1.5)
-                axes[1].set_title(f'Differenced Series (d={d}): After Differencing')
-                axes[1].set_ylabel('Differenced Price')
-                axes[1].grid(True, alpha=0.3)
+                fig, ax = plt.subplots(figsize=(12, 5))
+                for (col, label), color in zip(raw_columns.items(), colors):
+                    ax.plot(df['date'], df[col], label=label, color=color)
+
+                ax.set_title('Raw Time Series: All Variables (Before Differencing)')
+                ax.set_ylabel('Value')
+                ax.set_xlabel('Date')
+                ax.legend(loc='upper left')
+                ax.grid(True, linestyle='--', alpha=0.5)
+                ax.tick_params(axis='x', rotation=45)
 
                 plt.tight_layout()
                 buf = io.BytesIO()
-                plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+                plt.savefig(buf, format='png', bbox_inches='tight')
                 plt.close()
-                raw_series_graph = base64.b64encode(buf.getvalue()).decode('utf-8')
+                raw_series_graph = base64.b64encode(buf.getvalue()).decode('utf-8')  # 
+
+                # --- Differenced Farmgate Price → diff_series_graph ---
+                fig, ax2 = plt.subplots(figsize=(12, 4))
+                diff_series = df['farmgate_price'].diff(d).dropna()
+
+                ax2.plot(diff_series.values, color='darkorange')
+                ax2.set_title(f'Differenced Series (d={d}): After Differencing')
+                ax2.set_ylabel('Differenced Price')
+                ax2.axhline(0, color='black', linestyle='--', linewidth=0.8)
+                ax2.grid(True, linestyle='--', alpha=0.5)
+
+                plt.tight_layout()
+                buf2 = io.BytesIO()
+                plt.savefig(buf2, format='png', bbox_inches='tight')
+                plt.close()
+                diff_series_graph = base64.b64encode(buf2.getvalue()).decode('utf-8')  # ✅ image 2
+                
+
+
+                # --- ACF/PACF on Differenced farmgate_price → diagnostic_graph ---
+                series = df['farmgate_price'].diff(d).dropna()
+
+                if not series.empty and len(series) >= 4:
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
+                    lags = min(20, len(series) // 2 - 1)
+                    if lags > 0:
+                        plot_acf(series, ax=ax1, lags=lags)
+                        ax1.set_title(f"ACF: Autocorrelation (MA Identification) or q | d={d}")
+                        plot_pacf(series, ax=ax2, lags=lags)
+                        ax2.set_title(f"PACF: Partial Autocorrelation (AR Identification) or p | d={d}")
+
+                        buf2 = io.BytesIO()
+                        plt.savefig(buf2, format='png', bbox_inches='tight')
+                        plt.close()
+                        diagnostic_graph = base64.b64encode(buf2.getvalue()).decode('utf-8')  # ✅ correct variable
+
             except Exception as e:
-                print(f"Raw series plot error: {e}")
+                print(f"Diagnostic error: {e}")
 
         # 3. Generate Diagnostic Graph (ACF/PACF) ONLY for Excel evaluation training
         if processed_data and len(processed_data) > 0 and 'diagnose' in request.POST:
@@ -1135,6 +1178,7 @@ def train_model(request):
         'diagnostic_graph': diagnostic_graph,
         'raw_series_graph': raw_series_graph, 
         'metrics': metrics,
+        'diff_series_graph': diff_series_graph,  # farmgate differenced only
         'comparison_rows': comparison_rows,
         'p': p, 'd': d, 'q': q,
     })
