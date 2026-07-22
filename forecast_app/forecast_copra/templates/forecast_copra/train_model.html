@@ -1,440 +1,395 @@
 {% extends 'forecast_copra/admin_base.html' %}
 
-{% block title %}Train Model{% endblock %}
+{% block title %}Train Model - CopraForecaster{% endblock %}
+
+{% block page_title %}Train ARIMAX Model{% endblock %}
 
 {% block content %}
-<h2>Train ARIMAX Model</h2>
-
-<div class="training-options">
-   
-    <!-- Option 1: Train from Excel File -->
-    <div class="option-card" style="background: #e8f5e9; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
-        <h3 class="text-lg font-semibold text-yellow-500">Train from Spreadsheet for Training and Evaluation</h3>
-        
-        <form method="post" enctype="multipart/form-data" style="margin-top: 20px;">
-            {% csrf_token %}
-            <div style="margin: 15px 0;">
-                <label><strong>Select Spreadsheet File (.xlsx, .xls):</strong></label>
-                <input type="file" name="excel_file" accept=".xlsx,.xls" required 
-                style="padding: 10px; border: 2px dashed #4CAF50; border-radius: 5px; width: 100%;">
-                <p style="font-size: 0.9em; color: #666; margin-top: 5px;">
-                    File must have columns: <strong>date, farmgate_price, oil_price_trend, peso_dollar_rate</strong>
-                </p>
-            </div>
-
-            <!-- NEW: Train/Val/Test Split Ratios -->
-            <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <h4 style="margin-top: 0;"> Data Split Ratios</h4>
-                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                    Configure how data is split for training, validation, and testing (must sum to 1.0)
-                </p>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                    <div>
-                        <label><strong>Train Ratio:</strong></label>
-                        <input type="number" name="train_ratio" value="0.70" min="0.5" max="0.9" step="0.05"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Model training (default: 0.70)</small>
-                    </div>
-                    <div>
-                        <label><strong>Validation Ratio:</strong></label>
-                        <input type="number" name="val_ratio" value="0.15" min="0.05" max="0.3" step="0.05"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Hyperparameter tuning (default: 0.15)</small>
-                    </div>
-                    <div>
-                        <label><strong>Test Ratio:</strong></label>
-                        <input type="number" name="test_ratio" value="0.15" min="0.05" max="0.3" step="0.05"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Final evaluation (default: 0.15)</small>
-                    </div>
-                </div>
-                <div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-radius: 3px;">
-                    <small style="color: #1976d2;">
-                        <strong>ℹ️ Info:</strong> Train set builds the model, Validation set helps tune parameters (p,d,q), 
-                        Test set provides unbiased final performance metrics.
-                    </small>
-                </div>
-            </div>
-            
-            <!-- ARIMAX Parameters (Optional) -->
-            <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q)</h4>
-                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                    Leave as default (1,1,1) or customize based on ACF/PACF diagnostics
-                </p>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                    <div>
-                        <label><strong>p (AR order):</strong></label>
-                        <input type="number" name="p" value="1" min="0" max="19"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Autoregressive (default: 1)</small>
-                    </div>
-                    <div>
-                        <label><strong>d (I order):</strong></label>
-                        <input type="number" name="d" value="1" min="1" max="5"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Differencing (default: 1)</small>
-                    </div>
-                    <div>
-                        <label><strong>q (MA order):</strong></label>
-                        <input type="number" name="q" value="1" min="0" max="10"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Moving Average (default: 1)</small>
-                    </div>
-                </div>
-            </div>
-            <div class="flex flex-wrap gap-3 justify-center">
-
-            <button type="submit" name="diagnose"
-                    style="padding: 5px; background: #2196F3; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px; margin-right: 10px;">
-             Diagnose & Visualize (ACF/PACF)
-            </button>
-            <br>
-            <button type="submit" name="excel_train" 
-                    style="padding: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
-                Train & Evaluate Model
-            </button>
-            </div>
-        </form>
-    </div>
-    
-    <!-- Option 2: Train from Database -->
-    <div class="option-card" style="background: #fff3e0; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
-        <h3 class="text-lg font-semibold text-emerald-500">Train from Database for Deployment</h3>
-        <p>Train using 100% of database data (no validation/test split - for production deployment)</p>
-        
-        <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <p><strong>Database Statistics:</strong></p>
-            <p><strong>{{ data_count }}</strong> training records available</p>
-            {% if data_count < 100 %}
-                <p style="color: #f44336;">⚠️ Need at least 100 records to train</p>
-            {% else %}
-                <p style="color: #4CAF50;">✓ Sufficient data for training</p>
-            {% endif %}
-        </div>
-        
-        <form method="post">
-            {% csrf_token %}
-            
-            <!-- ARIMAX Parameters (Optional) -->
-            <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                <h4 style="margin-top: 0;">ARIMAX Parameters (p, d, q)</h4>
-                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                    Use parameters validated from Excel training, or leave as default
-                </p>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                    <div>
-                        <label><strong>p (AR order):</strong></label>
-                        <input type="number" name="p" value="1" min="0" max="10"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Autoregressive (default: 1)</small>
-                    </div>
-                    <div>
-                        <label><strong>d (I order):</strong></label>
-                        <input type="number" name="d" value="1" min="0" max="5"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Differencing (default: 1)</small>
-                    </div>
-                    <div>
-                        <label><strong>q (MA order):</strong></label>
-                        <input type="number" name="q" value="1" min="0" max="10"
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
-                        <small style="color: #666;">Moving Average (default: 1)</small>
-                    </div>
-                </div>
-            </div>
-            
-            <button type="submit" name="db_train" 
-                    {% if data_count < 10 %}disabled{% endif %}
-                    style="padding: 12px 25px; background: #ff9800; color: white; border: none; cursor: pointer; font-size: 16px; border-radius: 5px;">
-                🚀 Train from Database (100% Data)
-            </button>
-            
-            {% if data_count < 10 %}
-                <p style="color: #f44336; margin-top: 10px;">
-                    ⚠️ Add more data in "Manage Data" section first
-                </p>
-            {% endif %}
-        </form>
-    </div>
-</div>
-
-{% if  graph and not metrics.is_deployment %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
-    <div class="card-header bg-white py-3">
-        <h5 class="mb-0 text-primary"><i class="fas fa-chart-line me-2"></i> Model Performance on Test Set</h5>
-    </div>
-    <div class="card-body text-center bg-light">
-        <img src="data:image/png;base64,{{ graph }}" alt="ARIMAX Performance Graph" class="img-fluid rounded w-full" style="max-height: 450px; border: 1px solid #ddd;">
-        <div class="mt-3 row justify-content-center">
-            <div class="col-md-8">
-                <div class="d-flex justify-content-around small text-muted">
-                    <span><strong style="color: #2ecc71;">━</strong> Actual Historical Price</span>
-                    <span><strong style="color: #e74c3c;">---</strong> Model Prediction</span>
-                </div>
-                <p class="mt-2 mb-0 x-small text-muted">
-                    This shows the <strong>test set</strong> - data the model has never seen during training.
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!--Enhanced Metrics Display with Validation and Test -->
-{% if metrics.aic and not metrics.is_deployment %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
-    <div class="card-header bg-white py-3">
-        <h5 class="mb-0 text-primary"><i class="fas fa-chart-bar me-2"></i> Model Performance Metrics</h5>
-    </div>
-    <div class="card-body p-0">
-
-        <!-- AIC Row -->
-        <div style="padding: 14px 20px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 14px; background: #e3f2fd; flex-wrap: wrap;">
-            <div style="width: 10px; height: 10px; border-radius: 50%; background: #1976d2; flex-shrink: 0;"></div>
-            <div style="flex: 1; min-width: 150px;">
-                <p style="font-size: 12px; color: #555; margin: 0 0 2px; text-transform: uppercase; letter-spacing: 0.06em;">AIC (Akaike Information Criterion)</p>
-                <p style="font-size: 24px; font-weight: 600; color: #1a1a1a; margin: 0; line-height: 1.2;">{{ metrics.aic|floatformat:2 }}</p>
-            </div>
-            <p style="font-size: 12px; color: #777; margin: 0; max-width: 220px; line-height: 1.5;">Lower = better fit. Compare (p,d,q) combinations to minimise.</p>
-        </div>
-
-        <!-- Validation + Test Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-
-            <!-- Validation Set -->
-            <div style="padding: 18px 20px; border-right: 1px solid #e0e0e0; background: #fff8e1;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <div style="width: 4px; height: 16px; border-radius: 2px; background: #ff9800;"></div>
-                    <span style="font-size: 11px; font-weight: 700; color: #e65100; text-transform: uppercase; letter-spacing: 0.07em;">Validation Set</span>
-                </div>
-                <p style="font-size: 12px; color: #888; margin: 0 0 14px;">Hyperparameter tuning</p>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #555;">MAE</span>
-                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.val_mae|floatformat:4 }}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #555;">RMSE</span>
-                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.val_rmse|floatformat:4 }}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #ffe0b2;">
-                        <span style="font-size: 13px; color: #555;">MAPE</span>
-                        <span style="font-size: 16px; font-weight: 700; color: #e65100;">{{ metrics.val_mape|floatformat:2 }}%</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Test Set -->
-            <div style="padding: 18px 20px; background: #f1f8e9;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <div style="width: 4px; height: 16px; border-radius: 2px; background: #4CAF50;"></div>
-                    <span style="font-size: 11px; font-weight: 700; color: #2e7d32; text-transform: uppercase; letter-spacing: 0.07em;">Test Set (Final)</span>
-                </div>
-                <p style="font-size: 12px; color: #888; margin: 0 0 14px;">Unbiased final evaluation</p>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #555;">MAE</span>
-                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.mae|floatformat:4 }}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; color: #555;">RMSE</span>
-                        <span style="font-size: 15px; font-weight: 600; color: #333;">{{ metrics.rmse|floatformat:4 }}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #c8e6c9;">
-                        <span style="font-size: 13px; color: #555;">MAPE</span>
-                        <span style="font-size: 16px; font-weight: 700; color: #2e7d32;">{{ metrics.mape|floatformat:2 }}%</span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Footer Guide -->
-        <div style="padding: 10px 20px; background: #f5f5f5; border-top: 1px solid #e0e0e0;">
-            <p style="font-size: 12px; color: #888; margin: 0; line-height: 1.6;">
-                MAPE guide: &lt;5% excellent &nbsp;&middot;&nbsp; 5–10% good &nbsp;&middot;&nbsp; 10–20% fair &nbsp;&middot;&nbsp; &gt;20% needs improvement &nbsp;&middot;&nbsp; MAE/RMSE measured in &#8369;
-            </p>
-        </div>
-
-    </div>
-</div>
-{% endif %}
-
-{% if comparison_rows and not metrics.is_deployment %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0; padding: 1rem;">
-    <div class="card-header bg-white py-3">
-        <h5 class="mb-0 text-primary"><i class="fas fa-table me-2"></i> Actual vs Predicted (Test Set)</h5>
-    </div>
-    <div class="card-body p-0">
-        <div style="max-height: 320px; overflow-y: auto;">
-            <table class="table table-sm table-hover mb-0 table-custom">
-                <thead class="table-light sticky-top">
-                    <tr>
-                        <th style="width: 10%;">#</th>
-                        <th style="width: 25%;">Actual Price</th>
-                        <th style="width: 25%;">Predicted Price</th>
-                        <th style="width: 20%;">Error</th>
-                        <th style="width: 20%;">Error %</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in comparison_rows %}
-                    <tr>
-                        <td>{{ row.index }}</td>
-                        <td>₱{{ row.actual|floatformat:2 }}</td>
-                        <td>₱{{ row.predicted|floatformat:2 }}</td>
-                        <td class="{% if row.error > 5 %}text-danger{% else %}text-success{% endif %}">
-                            {{ row.error|floatformat:2 }}
-                        </td>
-                        <td class="{% if row.error_pct > 10 %}text-danger{% elif row.error_pct > 5 %}text-warning{% else %}text-success{% endif %}">
-                            {{ row.error_pct|floatformat:2 }}%
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endif %}
-{% comment %} Diagnose {% endcomment %}
-{% if raw_series_graph and not metrics.is_deployment %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #2196F3;">
-    <div class="card-header bg-primary text-white py-3">
-        <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i> Step 1: Raw Time Series & Stationarity Check</h5>
-    </div>
-    <div class="card-body text-center bg-light">
-        <p class="text-muted">
-            Inspect the <strong>raw series</strong> for trends/seasonality, then decide your <strong>d</strong> value before looking at ACF/PACF.
-        </p>
-        <img src="data:image/png;base64,{{ raw_series_graph }}" class="img-fluid rounded" style="width: 100%; border: 1px solid #eee;">
-        <div class="mt-3 p-3 bg-light rounded text-start" style="font-size: 0.9em; border-left: 5px solid #2196F3;">
-            <strong>How to read this:</strong>
-            <ul class="mb-0">
-                <li><strong>Top plot (Raw):</strong> If the mean/variance changes over time → series is <span class="text-danger">non-stationary</span> → needs differencing.</li>
-                <li><strong>Bottom plot (Differenced):</strong> If the series looks flat/stable → differencing worked → use that <code>d</code> value.</li>
-                <li>Once you decide <code>d</code>, click <strong>Train & Evaluate</strong> to see ACF/PACF for choosing <code>p</code> and <code>q</code>.</li>
-            </ul>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-{% if diff_series_graph and not metrics.is_deployment %}
-<div class="card mb-4 shadow-sm" style="border-radius: 12px; border: 1px solid #ff9800;">
-    <div class="card-header text-white py-3" style="background-color: #ff9800;">
-        <h5 class="mb-0"><i class="fas fa-wave-square me-2"></i> &nbsp; Differenced Farmgate Price (d={{ d }})</h5>
-    </div>
-    <div class="card-body text-center bg-light">
-        <img src="data:image/png;base64,{{ diff_series_graph }}" class="img-fluid rounded" style="width: 100%; border: 1px solid #eee;">
-    </div>
-</div>
-{% endif %}
-
-{% if diagnostic_graph and not metrics.is_deployment %}
-<div class="card mb-4 shadow-sm w-full" style="border-radius: 12px; border: 1px solid #607d8b; background: white;">
-    <div class="card-header bg-dark text-white py-3">
-        <h5 class="mb-0"><i class="fas fa-search me-2"></i> Model Parameter Identification (ACF & PACF)</h5>
-    </div>
-    <div class="card-body text-center w-full">
-        <p class="text-muted">
-            Use these plots to make an initial guess for <strong>p</strong> and <strong>q</strong>, 
-            then train several models with nearby (p,d,q) values and compare validation metrics.
-        </p>
-
-        <img src="data:image/png;base64,{{ diagnostic_graph }}" class="img-fluid rounded" style="width: 100%; max-height: 300px; border: 1px solid #eee;">
-
-        <div class="mt-3 p-3 bg-light rounded text-start" style="font-size: 0.9em; border-left: 5px solid #607d8b;">
-            <strong>How to Identify Parameters:</strong>
-            <ul class="mb-2">
-                <li><strong>AR (p):</strong> Look at <strong>PACF</strong>. The lag where it cuts off (enters blue zone) suggests <code>p</code>.</li>
-                <li><strong>MA (q):</strong> Look at <strong>ACF</strong>. The lag where it cuts off suggests <code>q</code>.</li>
-                <li><strong>Differencing (d):</strong> If ACF decays very slowly, try higher <code>d</code> values (1 or 2).</li>
-            </ul>
-            <div class="alert alert-success mb-0" style="font-size: 0.95em;">
-                <strong>💡 Best Practice:</strong> Try 3-5 different (p,d,q) combinations near your ACF/PACF suggestions. 
-                Compare their <strong>validation MAPE</strong> - pick the model with lowest validation error and reasonable test error.
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-
 <style>
+    .section-heading {
+        font-size: 1.5em;
+        font-weight: 800;
+        color: #020617;
+        margin-bottom: 24px;
+        letter-spacing: -0.02em;
+    }
+    
     .training-options {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 20px;
+        gap: 24px;
+        margin-bottom: 32px;
     }
-    
-    .option-card {
-        transition: transform 0.3s, box-shadow 0.3s;
-        border: 2px solid transparent;
-    }
-    
-    .option-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-    
-    @media (min-width: 768px) {
+
+    @media (min-width: 992px) {
         .training-options {
             grid-template-columns: 1fr 1fr;
         }
     }
 
-    .sticky-top {
-        position: sticky;
-        top: 0;
-        z-index: 10;
+    .option-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 1px 3px 0 rgba(0,0,0,0.05);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .table-custom {
+    .option-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+    }
+
+    .option-card h3 {
+        font-size: 1.15em;
+        font-weight: 700;
+        color: #020617;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sub-panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 16px 0;
+    }
+
+    .form-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #0f172a;
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .form-control {
         width: 100%;
-        border-collapse: collapse;
-        background: white;
+        padding: 9px 12px;
+        border: 1px solid #cbd5e1;
         border-radius: 8px;
-        overflow: hidden;
-    }
-    .table-custom th {
-        background: linear-gradient(45deg, #667eea, #764ba2);
-        color: white;
-        padding: 12px;
-        text-align: left;
-        font-weight: bold;
-    }
-    .table-custom td {
-        padding: 12px;
-        border-bottom: 1px solid #ddd;
-    }
-    .table-custom tbody tr:nth-child(even) {
-        background: #f8f9fa;
-    }
-    .table-custom tbody tr:hover {
-        background: #e9ecef;
+        font-size: 14px;
+        background: #ffffff;
+        color: #0f172a;
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .metric-subcard {
-        transition: all 0.3s ease;
+    .form-control:focus {
+        border-color: #020617;
+        box-shadow: 0 0 0 3px rgba(2, 6, 23, 0.08);
+    }
+
+    .btn-action {
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 600;
         border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
     }
-    .metric-subcard:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+
+    .btn-dark {
+        background: #020617;
+        color: #ffffff;
     }
-    .aic-subcard {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    .btn-dark:hover {
+        background: #1e293b;
     }
-    .val-subcard {
-        background: linear-gradient(135deg, #fff3e0 0%, #ffeaa7 100%);
+
+    .btn-secondary-slate {
+        background: #ffffff;
+        color: #0f172a;
+        border: 1px solid #cbd5e1;
     }
-    .test-subcard {
-        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    .btn-secondary-slate:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
     }
-    .deploy-subcard {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+
+    .btn-emerald {
+        background: #10b981;
+        color: #ffffff;
+    }
+    .btn-emerald:hover {
+        background: #059669;
+    }
+
+    .info-box {
+        padding: 12px 14px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        font-size: 12.5px;
+        color: #1e40af;
+    }
+
+    .metric-card-wrapper {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px 0 rgba(0,0,0,0.05);
+    }
+
+    .metric-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #ffffff;
+        font-weight: 700;
+        color: #020617;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 </style>
+
+<h2 class="section-heading">Model Training & Diagnostics</h2>
+
+<div class="training-options">
+   
+    <!-- Option 1: Train from Excel File -->
+    <div class="option-card">
+        <div>
+            <h3>
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Train from Spreadsheet
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Upload custom dataset (.xlsx, .xls, .csv) for hyperparameter evaluation.</p>
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="form-label">Select Spreadsheet or CSV File:</label>
+                    <input type="file" name="excel_file" accept=".xlsx,.xls,.csv" required class="form-control" style="padding: 8px;">
+                    <p class="text-xs text-slate-500 mt-1.5">
+                        Required columns: <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">date</code>, <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">farmgate_price</code>, <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">oil_price_trend</code>, <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700">peso_dollar_rate</code>
+                    </p>
+                </div>
+
+                <!-- Data Split Ratios -->
+                <div class="sub-panel">
+                    <h4 class="text-sm font-bold text-slate-900 mb-1">Data Split Ratios</h4>
+                    <p class="text-xs text-slate-500 mb-3">Split ratios for Train, Validation, and Test (must sum to 1.0)</p>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="form-label text-xs">Train Ratio</label>
+                            <input type="number" name="train_ratio" value="0.70" min="0.5" max="0.9" step="0.05" class="form-control">
+                            <span class="text-[11px] text-slate-500">Train (0.70)</span>
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">Validation Ratio</label>
+                            <input type="number" name="val_ratio" value="0.15" min="0.05" max="0.3" step="0.05" class="form-control">
+                            <span class="text-[11px] text-slate-500">Tuning (0.15)</span>
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">Test Ratio</label>
+                            <input type="number" name="test_ratio" value="0.15" min="0.05" max="0.3" step="0.05" class="form-control">
+                            <span class="text-[11px] text-slate-500">Eval (0.15)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ARIMAX Parameters -->
+                <div class="sub-panel">
+                    <h4 class="text-sm font-bold text-slate-900 mb-1">ARIMAX Parameters (p, d, q)</h4>
+                    <p class="text-xs text-slate-500 mb-3">Order settings for Autoregressive, Differencing, & Moving Average</p>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="form-label text-xs">p (AR)</label>
+                            <input type="number" name="p" value="1" min="0" max="19" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">d (Differencing)</label>
+                            <input type="number" name="d" value="1" min="1" max="5" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">q (MA)</label>
+                            <input type="number" name="q" value="1" min="0" max="10" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-3 mt-4">
+                    <button type="submit" name="diagnose" class="btn-action btn-secondary-slate flex-1">
+                        Diagnose (ACF/PACF)
+                    </button>
+                    <button type="submit" name="excel_train" class="btn-action btn-dark flex-1">
+                     Train & Evaluate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Option 2: Train from Database -->
+    <div class="option-card">
+        <div>
+            <h3>
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7c0-2 1-3 3-3h10c2 0 3 1 3 3M4 7h16"></path>
+                </svg>
+                Train from Database
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Train model using 100% of stored database records for deployment.</p>
+            
+            <div class="sub-panel">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold uppercase text-slate-500">Database Records</span>
+                        <div class="text-2xl font-bold text-slate-900 mt-0.5">{{ data_count }}</div>
+                    </div>
+                    {% if data_count < 100 %}
+                        <span class="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                            Min 100 Recommended
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                            ✓ Ready for Training
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="sub-panel">
+                    <h4 class="text-sm font-bold text-slate-900 mb-1">Deployment Parameters (p, d, q)</h4>
+                    <p class="text-xs text-slate-500 mb-3">Validated orders from ACF/PACF diagnostics</p>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="form-label text-xs">p (AR)</label>
+                            <input type="number" name="p" value="1" min="0" max="10" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">d (Differencing)</label>
+                            <input type="number" name="d" value="1" min="0" max="5" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label text-xs">q (MA)</label>
+                            <input type="number" name="q" value="1" min="0" max="10" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" name="db_train" {% if data_count < 10 %}disabled{% endif %} class="btn-action btn-emerald w-full mt-4">
+                    Train for Production Deployment (100% Data)
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Time Series & ACF/PACF Diagnostic Charts -->
+{% if raw_series_graph or diff_series_graph or diagnostic_graph %}
+<div class="metric-card-wrapper">
+    <div class="metric-header">
+        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        Time Series & ACF/PACF Diagnostics
+    </div>
+    <div class="p-6 space-y-6 bg-slate-50">
+        {% if raw_series_graph %}
+        <div>
+            <h4 class="text-sm font-bold text-slate-800 mb-2">Raw Time Series (All Variables)</h4>
+            <img src="data:image/png;base64,{{ raw_series_graph }}" alt="Raw Time Series Plot" class="rounded-xl w-full border border-slate-200" style="max-height: 400px; object-fit: contain;">
+        </div>
+        {% endif %}
+
+        {% if diff_series_graph %}
+        <div>
+            <h4 class="text-sm font-bold text-slate-800 mb-2">Differenced Farmgate Price Series (d={{ d }})</h4>
+            <img src="data:image/png;base64,{{ diff_series_graph }}" alt="Differenced Series Plot" class="rounded-xl w-full border border-slate-200" style="max-height: 350px; object-fit: contain;">
+        </div>
+        {% endif %}
+
+        {% if diagnostic_graph %}
+        <div>
+            <h4 class="text-sm font-bold text-slate-800 mb-2">ACF & PACF Autocorrelation Plots</h4>
+            <img src="data:image/png;base64,{{ diagnostic_graph }}" alt="ACF and PACF Diagnostics" class="rounded-xl w-full border border-slate-200" style="max-height: 350px; object-fit: contain;">
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Performance Chart -->
+{% if graph and not metrics.is_deployment %}
+<div class="metric-card-wrapper">
+    <div class="metric-header">
+        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+        </svg>
+        Model Performance on Test Set
+    </div>
+    <div class="p-6 text-center bg-slate-50">
+        <img src="data:image/png;base64,{{ graph }}" alt="ARIMAX Performance Graph" class="rounded-xl w-full border border-slate-200" style="max-height: 450px; object-fit: contain;">
+    </div>
+</div>
+{% endif %}
+
+<!-- Metrics Display -->
+{% if metrics.aic and not metrics.is_deployment %}
+<div class="metric-card-wrapper">
+    <div class="metric-header">
+        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        Model Performance Metrics
+    </div>
+    <div class="p-6">
+        <!-- AIC -->
+        <div class="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+            <div>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">AIC (Akaike Information Criterion)</span>
+                <div class="text-3xl font-extrabold text-slate-900 mt-1">{{ metrics.aic|floatformat:2 }}</div>
+            </div>
+            <p class="text-xs text-slate-500 max-w-xs text-right">Lower AIC score indicates better model quality.</p>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid md:grid-cols-2 gap-4">
+            <!-- Validation Set -->
+            <div class="p-4 rounded-xl bg-amber-50/50 border border-amber-200">
+                <span class="text-xs font-bold text-amber-800 uppercase tracking-wider">Validation Set</span>
+                <div class="mt-3 space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-slate-600">MAE</span><span class="font-bold text-slate-900">{{ metrics.val_mae|floatformat:4 }}</span></div>
+                    <div class="flex justify-between"><span class="text-slate-600">RMSE</span><span class="font-bold text-slate-900">{{ metrics.val_rmse|floatformat:4 }}</span></div>
+                    <div class="flex justify-between pt-2 border-t border-amber-200"><span class="text-slate-600">MAPE</span><span class="font-bold text-amber-800">{{ metrics.val_mape|floatformat:2 }}%</span></div>
+                </div>
+            </div>
+
+            <!-- Test Set -->
+            <div class="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200">
+                <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Test Set (Final)</span>
+                <div class="mt-3 space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-slate-600">MAE</span><span class="font-bold text-slate-900">{{ metrics.mae|floatformat:4 }}</span></div>
+                    <div class="flex justify-between"><span class="text-slate-600">RMSE</span><span class="font-bold text-slate-900">{{ metrics.rmse|floatformat:4 }}</span></div>
+                    <div class="flex justify-between pt-2 border-t border-emerald-200"><span class="text-slate-600">MAPE</span><span class="font-bold text-emerald-800">{{ metrics.mape|floatformat:2 }}%</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

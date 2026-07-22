@@ -8,6 +8,7 @@ from django.http import HttpResponseRedirect
 from django.utils.safestring import mark_safe
 from .models import User, TrainingData, TrainedModel, ForecastLog, ExcelUpload, DOEDieselUpload, DOEDieselPrice
 from .doe_parser import parse_doe_pdf  # Import your parser
+from .views import process_excel_file
 
 
 @admin.register(TrainingData)
@@ -102,6 +103,7 @@ class ExcelUploadAdmin(admin.ModelAdmin):
     list_filter = ('processed', 'uploaded_at')
     readonly_fields = ('uploaded_at', 'processed', 'rows_imported')
     list_per_page = 20
+    actions = ['process_selected_uploads']
     fieldsets = (
         ('Upload File', {
             'fields': ('file',)
@@ -112,35 +114,85 @@ class ExcelUploadAdmin(admin.ModelAdmin):
         }),
     )
 
+    @admin.action(description="Process/Re-process selected uploads into Training Data")
+    def process_selected_uploads(self, request, queryset):
+        success_count = 0
+        total_rows = 0
+        for obj in queryset:
+            try:
+                processed_data, message = process_excel_file(obj.file.path)
+                if processed_data:
+                    count = 0
+                    for item in processed_data:
+                        defaults = {
+                            'farmgate_price': item['farmgate_price'],
+                            'oil_price_trend': item['oil_price_trend'],
+                            'peso_dollar_rate': item['peso_dollar_rate'],
+                        }
+                        if item.get('diesel_price') is not None:
+                            defaults['diesel_price'] = item['diesel_price']
+                        if item.get('labor_min_wage') is not None:
+                            defaults['labor_min_wage'] = item['labor_min_wage']
+
+                        TrainingData.objects.update_or_create(
+                            date=item['date'],
+                            defaults=defaults
+                        )
+                        count += 1
+                    obj.processed = True
+                    obj.rows_imported = count
+                    obj.save()
+                    success_count += 1
+                    total_rows += count
+                else:
+                    obj.processed = False
+                    obj.rows_imported = 0
+                    obj.save()
+                    self.message_user(request, f"❌ Upload #{obj.id} ({obj.file.name}) failed: {message}", level=messages.ERROR)
+            except Exception as e:
+                obj.processed = False
+                obj.rows_imported = 0
+                obj.save()
+                self.message_user(request, f"❌ Upload #{obj.id} ({obj.file.name}) error: {e}", level=messages.ERROR)
+        
+        if success_count > 0:
+            self.message_user(request, f"✅ Successfully processed {success_count} file(s), imported {total_rows} rows into Training Data.", level=messages.SUCCESS)
+
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         try:
-            df = pd.read_excel(obj.file.path)
-            df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
-            count = 0
-            for _, row in df.iterrows():
-                # Build defaults dict with available columns
-                defaults = {
-                    'farmgate_price': row.get('farmgate_price'),
-                    'oil_price_trend': row.get('oil_price_trend'),
-                    'peso_dollar_rate': row.get('peso_dollar_rate'),
-                }
-                # Add new factors if present in Excel
-                if 'diesel_price' in row and pd.notna(row['diesel_price']):
-                    defaults['diesel_price'] = row['diesel_price']
-                if 'labor_min_wage' in row and pd.notna(row['labor_min_wage']):
-                    defaults['labor_min_wage'] = row['labor_min_wage']
-                
-                TrainingData.objects.update_or_create(
-                    date=row['date'],
-                    defaults=defaults
-                )
-                count += 1
-            obj.processed = True
-            obj.rows_imported = count
-            obj.save()
-            messages.success(request, f"✅ Successfully imported {count} rows into Training Data.")
+            processed_data, message = process_excel_file(obj.file.path)
+            if processed_data:
+                count = 0
+                for item in processed_data:
+                    defaults = {
+                        'farmgate_price': item['farmgate_price'],
+                        'oil_price_trend': item['oil_price_trend'],
+                        'peso_dollar_rate': item['peso_dollar_rate'],
+                    }
+                    if item.get('diesel_price') is not None:
+                        defaults['diesel_price'] = item['diesel_price']
+                    if item.get('labor_min_wage') is not None:
+                        defaults['labor_min_wage'] = item['labor_min_wage']
+
+                    TrainingData.objects.update_or_create(
+                        date=item['date'],
+                        defaults=defaults
+                    )
+                    count += 1
+                obj.processed = True
+                obj.rows_imported = count
+                obj.save()
+                messages.success(request, f"✅ Successfully imported {count} rows into Training Data.")
+            else:
+                obj.processed = False
+                obj.rows_imported = 0
+                obj.save()
+                messages.error(request, f"❌ Failed to process file: {message}")
         except Exception as e:
+            obj.processed = False
+            obj.rows_imported = 0
+            obj.save()
             messages.error(request, f"❌ Failed to process file: {e}")
 
 

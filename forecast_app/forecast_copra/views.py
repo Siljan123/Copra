@@ -1316,23 +1316,53 @@ def delete_model(request, model_id):
 # HELPER FUNCTIONS
 # ====================
 
-def process_excel_file(file_path):
-    """Process Excel file and extract data"""
+def read_data_file(file_path):
+    """
+    Reads data from Excel (.xlsx, .xls) or CSV (.csv) files into a pandas DataFrame.
+    Tries pandas read_excel and read_csv with appropriate encoding fallbacks.
+    """
+    ext = str(file_path).lower()
+    
+    if ext.endswith('.csv') or ext.endswith('.txt'):
+        try:
+            return pd.read_csv(file_path)
+        except Exception:
+            try:
+                return pd.read_csv(file_path, encoding='latin-1')
+            except Exception:
+                return pd.read_excel(file_path)
+    
+    # Primary attempt for spreadsheet files: read_excel
     try:
-        # Read Excel file
-        df = pd.read_excel(file_path)
+        return pd.read_excel(file_path)
+    except Exception as excel_err:
+        # Fallback: file might actually be CSV (even if extension is .xlsx or missing)
+        try:
+            return pd.read_csv(file_path)
+        except Exception:
+            try:
+                return pd.read_csv(file_path, encoding='latin-1')
+            except Exception:
+                raise excel_err
+
+
+def process_excel_file(file_path):
+    """Process Excel or CSV file and extract data"""
+    try:
+        # Read Excel or CSV file
+        df = read_data_file(file_path)
         
         # Convert column names to lowercase and strip spaces
-        df.columns = df.columns.str.strip().str.lower()
+        df.columns = df.columns.astype(str).str.strip().str.lower()
         
         # Map possible column names to standard names
         column_mapping = {
-            'date': ['date', 'dates', 'day', 'days'],
-            'farmgate_price': ['farmgate_price', 'price', 'farmgate', 'farmgate price', 'farmgate_price', 'farmgateprice'],
-            'oil_price_trend': ['oil_price_trend', 'oil price', 'oil', 'oil trend', 'oil_price', 'oilprice'],
-            'peso_dollar_rate': ['peso_dollar_rate', 'exchange rate', 'peso dollar', 'exchange', 'peso_dollar', 'pesodollar'],
-            'diesel_price': ['diesel_price', 'diesel price', 'diesel'],
-            'labor_min_wage': ['labor_min_wage', 'labor wage', 'labor_minimum_wage', 'minimum_wage', 'labor wage']
+            'date': ['date', 'dates', 'day', 'days', 'observation_date', 'datetime'],
+            'farmgate_price': ['farmgate_price', 'price', 'farmgate', 'farmgate price', 'farmgateprice', 'copra_price', 'copra price', 'value'],
+            'oil_price_trend': ['oil_price_trend', 'oil price', 'oil', 'oil trend', 'oil_price', 'oilprice', 'crude_oil', 'brent'],
+            'peso_dollar_rate': ['peso_dollar_rate', 'exchange rate', 'peso dollar', 'exchange', 'peso_dollar', 'pesodollar', 'usd_php', 'usd/php', 'fx_rate'],
+            'diesel_price': ['diesel_price', 'diesel price', 'diesel', 'fuel_price'],
+            'labor_min_wage': ['labor_min_wage', 'labor wage', 'labor_minimum_wage', 'minimum_wage', 'labor_wage', 'wage']
         }
         
         # Try to map columns

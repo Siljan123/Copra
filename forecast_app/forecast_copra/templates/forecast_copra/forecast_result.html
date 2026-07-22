@@ -1,169 +1,271 @@
 {% extends 'base.html' %}
 
+{% block title %}Forecast Results | CopraForecaster{% endblock %}
+
 {% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
 
-    <div class="card animate-float">
-        <h1>Forecast Generated Successfully!</h1>
-        <h2>Your Copra Price Prediction</h2>
+    <!-- Breadcrumb & Top Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+            <a href="{% url 'home' %}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors mb-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                Back to Simulator
+            </a>
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950">Copra Price Forecast Results</h1>
+            <p class="text-sm text-slate-500 mt-0.5">AI-Powered ARIMAX Price Prediction & Market Recommendations</p>
+        </div>
 
-        <div class="price-display">₱{{ predicted_price|floatformat:2 }}</div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'home' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-all">
+                🔄 New Forecast
+            </a>
+            <a href="{% url 'recent_forecasts' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                📊 All History
+            </a>
+        </div>
+    </div>
 
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">Coconut Oil Price</div>
-                <div class="info-value">{{ oil_price }}</div>
+    <!-- ══════════════════════════════════════════════════════
+         MAIN PREDICTION HERO CARD
+    ══════════════════════════════════════════════════════ -->
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            
+            <!-- Left: Predicted Price Display -->
+            <div class="space-y-3">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Forecast Generated Successfully
+                </div>
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Predicted Copra Price</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-4xl sm:text-5xl font-black text-slate-950 tracking-tight">₱{{ predicted_price|floatformat:2 }}</span>
+                        <span class="text-lg font-semibold text-slate-500">/ kg</span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500">
+                    Forecast horizon: <span class="font-bold text-slate-700">{{ forecast_horizon }} days</span> 
+                </p>
             </div>
-            <div class="info-item">
-                <div class="info-label">Exchange Rate (₱/$)</div>
-                <div class="info-value">{{ peso_dollar_rate }}</div>
+
+            <!-- Right: Input Factor Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:w-1/2">
+                <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                    <div class="text-xs font-semibold text-slate-500">Coconut Oil Price</div>
+                    <div class="text-xl font-bold text-slate-900 mt-1">₱{{ oil_price }}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">Input factor benchmark</div>
+                </div>
+                <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                    <div class="text-xs font-semibold text-slate-500">Exchange Rate (PHP/USD)</div>
+                    <div class="text-xl font-bold text-slate-900 mt-1">₱{{ peso_dollar_rate }}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">USD conversion rate</div>
+                </div>
             </div>
-            <div class="info-item">
-                <div class="info-label">Forecast Period</div>
-                <div class="info-value">{{ forecast_horizon }} days</div>
+
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         RECOMMENDATIONS SECTION (Objective 3)
+    ══════════════════════════════════════════════════════ -->
+    {% if summary_recommendation or recommendations %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm space-y-6">
+        
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+                <h2 class="text-lg font-bold text-slate-950 flex items-center gap-2">
+                    💡 Selling Recommendations & Market Intelligence
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">Actionable insights generated for copra farmers & buyers in Surigao del Sur</p>
             </div>
         </div>
 
-        <!-- ══════════════════════════════════════════════════════
-        RECOMMENDATIONS SECTION (Objective 3)
-        ══════════════════════════════════════════════════════ -->
-        {% if summary_recommendation or recommendations %}
-        <div class="recommendations-section">
-
-            <div class="recommendations-header">
-                <h3>Selling Recommendations</h3>
+        <!-- Market Stats Overview Row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            
+            {% if trend %}
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Market Trend</span>
+                <span class="inline-flex items-center gap-1 text-sm font-bold {% if trend == 'increasing' %}text-emerald-700{% elif trend == 'decreasing' %}text-rose-700{% else %}text-slate-800{% endif %}">
+                    {% if trend == 'increasing' %}📈 Rising
+                    {% elif trend == 'decreasing' %}📉 Declining
+                    {% else %}➡️ Stable{% endif %}
+                </span>
             </div>
+            {% endif %}
 
-            <!-- Market Stats Row -->
-            <div class="market-stats">
-                {% if trend %}
-                <div class="market-stat">
-                    <div class="market-stat-label">Market Trend</div>
-                    <div class="market-stat-value">
-                        {% if trend == 'increasing' %}📈 Rising
-                        {% elif trend == 'decreasing' %}📉 Declining
-                        {% else %}➡️ Stable{% endif %}
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if volatility %}
-                <div class="market-stat">
-                    <div class="market-stat-label">Price Volatility</div>
-                    <div class="market-stat-value">{{ volatility|floatformat:1 }}%</div>
-                    <div class="market-stat-change {% if volatility > 10 %}negative-change{% else %}positive-change{% endif %}">
-                        {% if volatility > 10 %}High Risk{% elif volatility > 5 %}Moderate{% else %}Low Risk{% endif %}
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if price_range %}
-                <div class="market-stat">
-                    <div class="market-stat-label">Price Range</div>
-                    <div class="market-stat-value">₱{{ price_range.min|floatformat:2 }} – ₱{{ price_range.max|floatformat:2 }}</div>
-                </div>
-                <div class="market-stat">
-                    <div class="market-stat-label">Average Price</div>
-                    <div class="market-stat-value">₱{{ price_range.avg|floatformat:2 }}</div>
-                </div>
-                {% endif %}
+            {% if volatility %}
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Volatility</span>
+                <div class="text-sm font-bold text-slate-900">{{ volatility|floatformat:1 }}%</div>
+                <span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full {% if volatility > 10 %}bg-rose-100 text-rose-800{% elif volatility > 5 %}bg-amber-100 text-amber-800{% else %}bg-emerald-100 text-emerald-800{% endif %}">
+                    {% if volatility > 10 %}High Risk{% elif volatility > 5 %}Moderate{% else %}Low Risk{% endif %}
+                </span>
             </div>
+            {% endif %}
 
-            <!-- ── 5 Detailed Recommendations ── -->
-            {% if recommendations %}
-            <div class="recommendations-list">
-
-                {% for rec in recommendations %}
-
-                    {# 1. OPTIMAL SELLING TIME #}
-                    {% if forloop.counter == 1 %}
-                    <div class="recommendation-item rec-optimal">
-                        <div class="rec-title">📅 Optimal Selling Time</div>
-                        <div class="rec-body">{{ rec|safe }}</div>
-                    </div>
-
-                    {# 2. SELL OR WAIT #}
-                    {% elif forloop.counter == 2 %}
-                    <div class="recommendation-item rec-sellwait">
-                        <div class="rec-title">⏳ Sell Now or Wait?</div>
-                        <div class="rec-body">{{ rec|safe }}</div>
-                    </div>
-
-                    {# 3. RISK ADVISORY #}
-                    {% elif forloop.counter == 3 %}
-                    <div class="recommendation-item rec-risk">
-                        <div class="rec-title">⚠️ Risk Advisory</div>
-                        <div class="rec-body">{{ rec|safe }}</div>
-                    </div>
-
-                    {# 4. PRICE RANGE AWARENESS #}
-                    {% elif forloop.counter == 4 %}
-                    <div class="recommendation-item rec-pricerange">
-                        <div class="rec-title">💰 Price Range Awareness</div>
-                        <div class="rec-body">{{ rec|safe }}</div>
-                    </div>
-
-                    {# 5. MARKET FACTORS #}
-                    {% elif forloop.counter == 5 %}
-                    <div class="recommendation-item rec-market">
-                        <div class="rec-title">🌍 Market Factors Reminder</div>
-                        <div class="rec-body">{{ rec|safe }}</div>
-                    </div>
-
-                    {% endif %}
-                {% endfor %}
-
+            {% if price_range %}
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Price Range</span>
+                <span class="text-sm font-bold text-slate-900">₱{{ price_range.min|floatformat:2 }} – ₱{{ price_range.max|floatformat:2 }}</span>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Average Price</span>
+                <span class="text-sm font-bold text-emerald-700">₱{{ price_range.avg|floatformat:2 }}</span>
             </div>
             {% endif %}
 
         </div>
-        {% endif %}
-        <!-- ══════════════════════════════════════════════════════ -->
 
-        <!-- Chart -->
-        <h3>Price Forecast Trend</h3>
-        <div class="chart-container">
-            <canvas id="forecastChart"></canvas>
+        <!-- 5 Detailed Recommendation Cards -->
+        {% if recommendations %}
+        <div class="space-y-4">
+            {% for rec in recommendations %}
+                {% if forloop.counter == 1 %}
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 sm:p-5 flex gap-3 sm:gap-4 items-start shadow-sm">
+                    <div class="h-9 w-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shrink-0">
+                        📅
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-emerald-950">Optimal Selling Time</h3>
+                        <div class="text-xs text-emerald-900 leading-relaxed">{{ rec|safe }}</div>
+                    </div>
+                </div>
+
+                {% elif forloop.counter == 2 %}
+                <div class="rounded-xl border border-blue-200 bg-blue-50/60 p-4 sm:p-5 flex gap-3 sm:gap-4 items-start shadow-sm">
+                    <div class="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center text-lg font-bold shrink-0">
+                        ⏳
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-blue-950">Sell Now or Wait?</h3>
+                        <div class="text-xs text-blue-900 leading-relaxed">{{ rec|safe }}</div>
+                    </div>
+                </div>
+
+                {% elif forloop.counter == 3 %}
+                <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5 flex gap-3 sm:gap-4 items-start shadow-sm">
+                    <div class="h-9 w-9 rounded-lg bg-amber-600 text-white flex items-center justify-center text-lg font-bold shrink-0">
+                        ⚠️
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-amber-950">Risk Advisory</h3>
+                        <div class="text-xs text-amber-900 leading-relaxed">{{ rec|safe }}</div>
+                    </div>
+                </div>
+
+                {% elif forloop.counter == 4 %}
+                <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 sm:p-5 flex gap-3 sm:gap-4 items-start shadow-sm">
+                    <div class="h-9 w-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-lg font-bold shrink-0">
+                        💰
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-indigo-950">Price Range Awareness</h3>
+                        <div class="text-xs text-indigo-900 leading-relaxed">{{ rec|safe }}</div>
+                    </div>
+                </div>
+
+                {% elif forloop.counter == 5 %}
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5 flex gap-3 sm:gap-4 items-start shadow-sm">
+                    <div class="h-9 w-9 rounded-lg bg-slate-900 text-white flex items-center justify-center text-lg font-bold shrink-0">
+                        🌍
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-slate-950">Market Factors Reminder</h3>
+                        <div class="text-xs text-slate-700 leading-relaxed">{{ rec|safe }}</div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════════════════════
+         FORECAST CHART & TIMELINE TABLE
+    ══════════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+        <!-- Left: Line Chart -->
+        <div class="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div>
+                <h2 class="text-base font-bold text-slate-950">Price Forecast Trend</h2>
+                <p class="text-xs text-slate-500">Visual trend projection for {{ forecast_horizon }} days ahead</p>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="forecastChart"></canvas>
+            </div>
         </div>
 
-        <!-- Forecast Table -->
-        <h3>Detailed Forecast Timeline</h3>
-        <table class="forecast-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Predicted Price (₱)</th>
-                    <th>Day</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for date, price in forecast_data %}
-                <tr>
-                    <td>{{ date }}</td>
-                    <td><strong>₱{{ price|floatformat:2 }}</strong></td>
-                    <td>Day {{ forloop.counter }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Right: Forecast Table -->
+        <div class="lg:col-span-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div>
+                <h2 class="text-base font-bold text-slate-950">Detailed Timeline</h2>
+                <p class="text-xs text-slate-500">Day-by-day price predictions</p>
+            </div>
 
-        <div class="button-container">
-            <a href="{% url 'home' %}" class="btn">🔄 Make Another Forecast</a>
-            <a href="{% url 'recent_forecasts' %}" class="btn btn-secondary">📊 View All Forecasts</a>
+            <div class="overflow-hidden rounded-xl border border-slate-100">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                        <tr>
+                            <th class="px-4 py-3">Day</th>
+                            <th class="px-4 py-3">Date</th>
+                            <th class="px-4 py-3 text-right">Predicted Price</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+                        {% for date, price in forecast_data %}
+                        <tr class="hover:bg-slate-50/60 transition-colors">
+                            <td class="px-4 py-3 font-semibold text-slate-900">Day {{ forloop.counter }}</td>
+                            <td class="px-4 py-3 text-slate-500">{{ date }}</td>
+                            <td class="px-4 py-3 text-right font-bold text-emerald-600">₱{{ price|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Actions Banner -->
+    <div class="rounded-xl border border-slate-200 bg-slate-50 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+            <h3 class="text-sm font-bold text-slate-900">Ready to simulate another market condition?</h3>
+            <p class="text-xs text-slate-500">Change oil price or exchange rates to see how copra price responds.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'home' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-all">
+                🔄 Run Another Simulation
+            </a>
+            <a href="{% url 'recent_forecasts' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                📊 View History
+            </a>
         </div>
     </div>
-<script>
-    const forecastData = [
-        {% for date, price in forecast_data %}
-        { date: '{{ date }}', price: {{ price }} }{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    ];
 
-    const dates  = forecastData.map(d => d.date);
-    const prices = forecastData.map(d => d.price);
+</div>
+
+{{ forecast_data|json_script:"forecast-data-json" }}
+
+<!-- ══════════════════════════════════════════════════════
+     CHART.JS SCRIPT
+══════════════════════════════════════════════════════ -->
+<script>
+    const rawForecastData = JSON.parse(document.getElementById('forecast-data-json').textContent);
+
+    const dates  = rawForecastData.map(d => d[0]);
+    const prices = rawForecastData.map(d => d[1]);
 
     const ctx = document.getElementById('forecastChart').getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
     gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
     new Chart(ctx, {
@@ -171,20 +273,20 @@
         data: {
             labels: dates,
             datasets: [{
-                label: 'Predicted Copra Price (₱)',
+                label: 'Predicted Price (₱/kg)',
                 data: prices,
-                borderColor: '#10b981',
+                borderColor: '#059669',
                 backgroundColor: gradient,
-                borderWidth: 3,
+                borderWidth: 2.5,
                 fill: true,
-                tension: 0.4,
-                pointRadius: 5,
-                pointBackgroundColor: '#10b981',
-                pointBorderColor: '#fff',
+                tension: 0.35,
+                pointRadius: 4,
+                pointBackgroundColor: '#059669',
+                pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
-                pointHoverRadius: 7,
-                pointHoverBackgroundColor: '#059669',
-                pointHoverBorderWidth: 3
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: '#047857',
+                pointHoverBorderWidth: 2
             }]
         },
         options: {
@@ -192,33 +294,21 @@
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        font: { family: 'Plus Jakarta Sans', size: 14, weight: '600' },
-                        color: '#94a3b8'
-                    }
+                    display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    titleColor: '#fff',
-                    bodyColor: '#10b981',
-                    titleFont: { family: 'Plus Jakarta Sans', size: 14 },
-                    bodyFont: { family: 'Plus Jakarta Sans', size: 13, weight: '600' },
-                    padding: 12,
+                    backgroundColor: '#0f172a',
+                    titleColor: '#ffffff',
+                    bodyColor: '#34d399',
+                    titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: '600' },
+                    bodyFont: { family: 'Plus Jakarta Sans', size: 13, weight: '700' },
+                    padding: 10,
                     cornerRadius: 8,
-                    borderColor: 'rgba(16, 185, 129, 0.3)',
+                    borderColor: '#334155',
                     borderWidth: 1,
                     callbacks: {
-                        label: ctx => 'Price: ₱' + ctx.parsed.y.toFixed(2)
+                        label: ctx => 'Predicted Price: ₱' + ctx.parsed.y.toFixed(2) + '/kg'
                     }
-                },
-                title: {
-                    display: true,
-                    text: 'Copra Price Forecast – {{ forecast_horizon }} Days Ahead',
-                    font: { family: 'Plus Jakarta Sans', size: 16, weight: 'bold' },
-                    color: '#cbd5e1',
-                    padding: 20
                 }
             },
             scales: {
@@ -226,28 +316,23 @@
                     beginAtZero: false,
                     ticks: {
                         callback: v => '₱' + v.toFixed(2),
-                        font: { family: 'Plus Jakarta Sans', size: 12 },
+                        font: { family: 'Plus Jakarta Sans', size: 11 },
                         color: '#64748b'
                     },
-                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                    grid: { color: '#f1f5f9', drawBorder: false },
                     title: {
-                        display: true, text: 'Price (₱)',
-                        font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
-                        color: '#94a3b8'
+                        display: true,
+                        text: 'Price (₱/kg)',
+                        font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' },
+                        color: '#64748b'
                     }
                 },
                 x: {
                     ticks: {
-                        maxRotation: 45, minRotation: 45,
                         font: { family: 'Plus Jakarta Sans', size: 10 },
                         color: '#64748b'
                     },
-                    grid: { display: false, drawBorder: false },
-                    title: {
-                        display: true, text: 'Date',
-                        font: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' },
-                        color: '#94a3b8'
-                    }
+                    grid: { display: false, drawBorder: false }
                 }
             },
             interaction: { intersect: false, mode: 'index' }
@@ -255,5 +340,3 @@
     });
 </script>
 {% endblock %}
-
-

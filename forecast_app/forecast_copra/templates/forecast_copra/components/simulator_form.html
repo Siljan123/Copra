@@ -1,0 +1,201 @@
+<!-- ===================== SIMULATOR FORM COMPONENT ===================== -->
+<div class="bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm space-y-6">
+
+    <div class="border-b border-slate-100 pb-4 flex justify-between items-center">
+        <div>
+            <h2 class="text-lg font-bold text-slate-950 tracking-tight">Simulation Inputs</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Configure economic parameters for price projection.</p>
+        </div>
+        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-mono font-medium text-slate-600 border border-slate-200">
+            FORM-REF: CP-SUR-01
+        </span>
+    </div>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Step 1: Labor Wage -->
+        <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+            <div class="flex justify-between items-center text-xs">
+                <label for="labor_min_wage" class="font-bold text-slate-900 uppercase tracking-wider">
+                    1. Labor Min Wage (PHP/Day)
+                </label>
+                <a href="https://nwpc.dole.gov.ph/summary-of-daily-minimum-wage-rates-per-wage-order-by-region-non-agriculture-1989-present/"
+                   target="_blank"
+                   class="text-xs font-medium text-slate-600 hover:text-slate-950 underline">
+                    DOLE NWPC ↗
+                </a>
+            </div>
+
+            {% if live_labor_wage %}
+            <div class="text-xs text-slate-600 bg-white px-3 py-1.5 rounded border border-slate-200 flex justify-between items-center shadow-2xs">
+                <span>Region XIII Wage Reference:</span>
+                <strong class="text-slate-950">₱{{ live_labor_wage }}/day</strong>
+            </div>
+            {% endif %}
+
+            <input type="number" step="0.01" min="300" max="1000"
+                name="labor_min_wage" id="labor_min_wage"
+                {% if live_labor_wage %}
+                    value="{{ live_labor_wage }}"
+                {% else %}
+                    value="475.00"
+                    placeholder="475.00"
+                {% endif %}
+                class="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-slate-950 font-mono text-sm shadow-2xs focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950"
+                onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
+            <p class="text-xs text-slate-500">Region XIII (Caraga) daily minimum wage rate.</p>
+        </div>
+
+        <!-- Step 2: Coconut Oil Price -->
+        <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+            <div class="flex justify-between items-center text-xs">
+                <label for="oil_price_usd_mt" class="font-bold text-slate-900 uppercase tracking-wider">
+                    2. Coconut Oil Price (USD / Metric Ton)
+                </label>
+                <div class="flex items-center gap-2">
+                    <a href="https://coconutcommunity.org/page-statistics/weekly-price-update"
+                       target="_blank"
+                       class="text-xs font-medium text-slate-600 hover:text-slate-950 underline">
+                        Source ↗
+                    </a>
+                    <button type="button" onclick="openModal('modal-coconut')"
+                        class="px-2 py-0.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-900 rounded text-[11px] font-semibold transition-colors shadow-2xs">
+                        Preview
+                    </button>
+                </div>
+            </div>
+
+            {% if live_oil_price and live_oil_price != 'Unavailable' %}
+            <div class="text-xs text-slate-600 bg-white px-3 py-1.5 rounded border border-slate-200 flex justify-between items-center shadow-2xs">
+                <span>Latest Benchmark ({{ live_oil_date }}):</span>
+                <strong class="text-slate-950">${{ live_oil_price }} USD/MT</strong>
+            </div>
+            {% endif %}
+
+            <input type="number" step="0.01" id="oil_price_usd_mt" min="1000" max="4000"
+                {% if live_oil_price %}
+                    value="{{ live_oil_price }}"
+                {% else %}
+                    placeholder="Enter current oil price (USD/MT)"
+                {% endif %}
+                class="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-slate-950 font-mono text-sm shadow-2xs focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950"
+                onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
+            <p class="text-xs text-slate-500">Philippines (Domestic, Millgate standard in USD/MT).</p>
+        </div>
+
+        <!-- Step 3: PHP/USD Exchange Rate -->
+        <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+            <div class="flex justify-between items-center text-xs">
+                <label for="peso_dollar_rate" class="font-bold text-slate-900 uppercase tracking-wider">
+                    3. PHP / USD Exchange Rate
+                </label>
+                <div class="flex items-center gap-2">
+                    <a href="https://www.bsp.gov.ph/statistics/external/day99_data.aspx"
+                       target="_blank"
+                       class="text-xs font-medium text-slate-600 hover:text-slate-950 underline">
+                        BSP Govt ↗
+                    </a>
+                    <button type="button" onclick="openModal('modal-bsp')"
+                        class="px-2 py-0.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-900 rounded text-[11px] font-semibold transition-colors shadow-2xs">
+                        Preview
+                    </button>
+                </div>
+            </div>
+
+            {% if live_peso_rate %}
+            <div class="text-xs text-slate-600 bg-white px-3 py-1.5 rounded border border-slate-200 flex justify-between items-center shadow-2xs">
+                <span>BSP Reference Rate ({{ live_peso_date }}):</span>
+                <strong class="text-slate-950">₱{{ live_peso_rate }} / USD</strong>
+            </div>
+            {% endif %}
+
+            <input type="number" step="0.01" min="50" max="100"
+                name="peso_dollar_rate" id="peso_dollar_rate"
+                {% if live_peso_rate %}
+                    value="{{ live_peso_rate }}"
+                {% else %}
+                    placeholder="Enter current PHP/USD rate"
+                {% endif %}
+                class="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-slate-950 font-mono text-sm shadow-2xs focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950"
+                onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''">
+            <p class="text-xs text-slate-500">Bangko Sentral ng Pilipinas daily exchange rate.</p>
+        </div>
+
+        <!-- Calculate Action & Result -->
+        <div class="space-y-4 pt-2">
+            <button type="button" id="calculateBtn"
+                class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+                <span>Compute Local Oil Equivalent (PHP/KG)</span>
+            </button>
+
+            <div class="space-y-1.5">
+                <label for="oil_price_php_kg" class="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Calculated Oil Price (PHP/KG)
+                </label>
+                <div class="relative">
+                    <input type="number" value="{{ latest_oil }}" step="0.001" name="oil_price_trend" id="oil_price_php_kg" required readonly
+                        class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-emerald-700 font-mono font-bold text-xl outline-none cursor-not-allowed">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-mono font-bold">
+                        PHP / KG
+                    </span>
+                </div>
+            </div>
+
+            <!-- Breakdown Box -->
+            <div id="calculation-breakdown" class="hidden p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-2 font-mono">
+                <div class="text-slate-900 font-bold uppercase tracking-wider pb-1.5 border-b border-slate-200">
+                    Calculation Breakdown:
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>USD / MT:</span>
+                    <span id="breakdown-usd-mt" class="text-slate-950 font-bold">-</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Exchange Rate:</span>
+                    <span id="breakdown-rate" class="text-slate-950 font-bold">-</span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>PHP / MT (Gross):</span>
+                    <span id="breakdown-php-mt" class="text-slate-950 font-bold">-</span>
+                </div>
+                <div class="flex justify-between text-emerald-700 pt-1.5 border-t border-slate-200 font-bold text-sm">
+                    <span>PHP / KG (÷ 1000):</span>
+                    <span id="breakdown-php-kg">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Forecast Horizon & Submit -->
+        <div class="space-y-4 pt-2 border-t border-slate-100">
+            <div class="space-y-1.5">
+                <label for="forecast_horizon" class="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Prediction Horizon
+                </label>
+                <select name="forecast_horizon" id="forecast_horizon" class="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-slate-950 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950 shadow-2xs">
+                    <option value="3" selected>3 Days Forecast</option>
+                    <option value="5">5 Days Forecast</option>
+                    <option value="7">7 Days Forecast</option>
+                    <option value="14">14 Days Forecast</option>
+                    <option value="30">30 Days Forecast</option>
+                </select>
+            </div>
+
+            <button type="submit" id="submitBtn" disabled
+                    onclick="checkModel(event)"
+                class="w-full py-3.5 bg-slate-950 text-white font-semibold rounded-lg shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>Run Simulation</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                </svg>
+            </button>
+            <p id="submitNotice" class="text-center text-xs text-slate-500">
+                Please calculate local price before running simulation.
+            </p>
+        </div>
+
+    </form>
+</div>

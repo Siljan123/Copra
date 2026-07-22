@@ -1,0 +1,57 @@
+<!-- ===================== HERO SECTION ===================== -->
+<section class="py-12 sm:py-20 bg-gradient-to-b from-slate-50/80 via-white to-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+
+        <!-- Top Pill Tag Badge -->
+        <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50/80 px-3.5 py-1.5 text-xs text-slate-700 shadow-sm font-medium hover:bg-slate-100 transition-colors cursor-pointer mb-6">
+            <span class="font-semibold text-slate-900">CopraForecaster AI</span>
+            <span class="h-3 w-px bg-slate-300"></span>
+            <span class="text-slate-500">Surigao del Sur Region</span>
+            <span class="h-3 w-px bg-slate-300"></span>
+            <span class="text-slate-900 font-semibold flex items-center gap-1">
+                Live Econometric Model
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </span>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="text-4xl sm:text-6xl font-extrabold text-slate-950 tracking-tight text-center max-w-4xl mx-auto leading-[1.15]">
+            The ultimate price forecaster for Copra & Agriculture
+        </h1>
+
+        <!-- Sub-headline -->
+        <p class="mt-6 text-base sm:text-lg text-slate-600 text-center max-w-3xl mx-auto leading-relaxed">
+            A data-driven forecasting tool that helps farmers and traders in Surigao del Sur anticipate copra farmgate prices using historical data, coconut oil price trends, and peso–dollar exchange rates.
+        </p>
+
+        <!-- Dual CTA Buttons -->
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <a href="#simulator" 
+               class="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-slate-800 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950">
+                <span>Run Simulator</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </a>
+
+            <a href="{% url 'historical_trend' %}" 
+               class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950">
+                <span>Browse Trends</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Data Partners / Source Badges Row -->
+        <div class="mt-12 pt-8 border-t border-slate-100 flex flex-wrap items-center justify-center gap-8 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> DOLE NWPC</span>
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-indigo-500"></span> Bangko Sentral ng Pilipinas</span>
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-amber-500"></span> Coconut Community</span>
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-blue-500"></span> PCA Farmgate Records</span>
+        </div>
+
+    </div>
+</section>

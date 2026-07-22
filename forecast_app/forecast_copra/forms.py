@@ -66,13 +66,13 @@ class ForecastForm(forms.Form):
     )
 class ExcelUploadForm(forms.Form):
     excel_file = forms.FileField(
-        label='Select Excel File',
-        help_text='Upload Excel file with columns: date, farmgate_price, oil_price_trend, peso_dollar_rate, diesel_price (optional), labor_min_wage (optional)'
+        label='Select Excel/CSV File',
+        help_text='Upload Excel (.xlsx, .xls) or CSV (.csv) file with columns: date, farmgate_price, oil_price_trend, peso_dollar_rate, diesel_price (optional), labor_min_wage (optional)'
     )
     
     def clean_excel_file(self):
         excel_file = self.cleaned_data['excel_file']
         # Check file extension
-        if not excel_file.name.endswith(('.xlsx', '.xls')):
-            raise forms.ValidationError('Only Excel files are allowed (.xlsx, .xls)')
+        if not excel_file.name.lower().endswith(('.xlsx', '.xls', '.csv', '.txt')):
+            raise forms.ValidationError('Only Excel (.xlsx, .xls) and CSV (.csv) files are allowed.')
         return excel_file

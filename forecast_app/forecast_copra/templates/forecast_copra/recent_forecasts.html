@@ -1,60 +1,64 @@
 {% extends 'base.html' %}
 
-{% block title %}Recent Forecasted Prices | CopraForecaster{% endblock %}
+{% block title %}Recent Forecasts | CopraForecaster{% endblock %}
 
 {% block content %}
-<div class="animate-fade-in">
-    <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
+
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-            <h2 class="text-3xl font-bold premium-text">Recent Forecasted Prices</h2>
-            <p class="text-slate-400 mt-2"> for Surigao del Sur.</p>
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950">Recent Forecasts</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Audit log of copra price predictions generated for Surigao del Sur</p>
         </div>
-        <div class="text-sm font-medium text-slate-500 bg-white/5 px-4 py-2 rounded-full border border-white/10">
-            Total Entries: <span class="text-indigo-400">{{ forecasts|length }}</span>
+        <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200 px-3.5 py-1 text-xs font-semibold text-slate-700">
+                Total Logs: <span class="text-emerald-600 font-bold">{{ forecasts|length }}</span>
+            </span>
+            <a href="{% url 'home' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-all">
+                🔄 Run Simulator
+            </a>
         </div>
     </div>
 
-    <div class="glass-card rounded-3xl overflow-hidden">
+    <!-- Main Content Table Card -->
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {% if forecasts %}
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="border-b border-white/10 bg-white/5">
-                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Date Submitted</th>
-                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Domestic Coconut Oil Price (kg)</th>
-                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">FX (PHP/USD)</th>
-                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Horizon</th>
-                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Predicted Price</th>
+                    <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <th class="px-6 py-4">Date Submitted</th>
+                        <th class="px-6 py-4 text-center">Domestic Coconut Oil Price</th>
+                        <th class="px-6 py-4 text-center">Exchange Rate (PHP/USD)</th>
+                        <th class="px-6 py-4 text-center">Forecast Horizon</th>
+                        <th class="px-6 py-4 text-right">Predicted Price</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-white/5">
+                <tbody class="divide-y divide-slate-100 text-sm">
                     {% for forecast in forecasts %}
-                    <tr class="hover:bg-white/5 transition-colors group">
-                        <td class="px-6 py-5">
-                            <div class="text-sm font-medium text-slate-200">{{ forecast.created_at|date:"M d, Y" }}</div>
-                            <div class="text-[10px] text-slate-500 uppercase tracking-tighter">{{ forecast.created_at|date:"h:i A" }}</div>
+                    <tr class="hover:bg-slate-50/70 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-900">{{ forecast.created_at|date:"M d, Y" }}</div>
+                            <div class="text-xs text-slate-400">{{ forecast.created_at|date:"h:i A" }}</div>
                         </td>
-                        <td class="px-6 py-5 text-center">
-                            <span class="text-sm text-slate-300">₱  {{ forecast.farmer_input_oil_price_trend|floatformat:3 }}</span>
+                        <td class="px-6 py-4 text-center font-medium text-slate-700">
+                            ₱{{ forecast.farmer_input_oil_price_trend|floatformat:2 }}
                         </td>
-                        <td class="px-6 py-5 text-center">
-                            <span class="text-sm text-slate-300">₱ {{ forecast.farmer_input_peso_dollar_rate|floatformat:2 }}</span>
+                        <td class="px-6 py-4 text-center font-medium text-slate-700">
+                            ₱{{ forecast.farmer_input_peso_dollar_rate|floatformat:2 }}
                         </td>
-                        <td class="px-6 py-5 text-center">
-                            <div class="text-sm font-semibold text-indigo-300">
-                                {{ forecast.target_date|date:"M d, Y" }}
-                            </div>
-                            
-                            <div class="mt-1">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-tighter">
-                                    {{ forecast.forecast_horizon }}-Day Forecast
-                                </span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-5 text-right">
-                            <span class="text-lg font-bold text-emerald-400 group-hover:scale-110 transition-transform inline-block origin-right">
-                                ₱ {{ forecast.price_predicted|floatformat:2 }}
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {{ forecast.forecast_horizon }}-Day Horizon
                             </span>
+                            <div class="text-[11px] text-slate-400 mt-0.5">Target: {{ forecast.target_date|date:"M d, Y" }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <span class="text-base font-extrabold text-emerald-600">
+                                ₱{{ forecast.price_predicted|floatformat:2 }}
+                            </span>
+                            <span class="text-xs text-slate-400 font-normal"> / kg</span>
                         </td>
                     </tr>
                     {% endfor %}
@@ -62,24 +66,18 @@
             </table>
         </div>
         {% else %}
-        <div class="py-20 text-center">
-            <div class="text-5xl mb-4">📂</div>
-            <h3 class="text-xl font-bold text-white">No history found</h3>
-            <p class="text-slate-500 mt-2 max-w-xs mx-auto">Generate your first market prediction to populate the audit trail.</p>
-            <a href="{% url 'home' %}" class="mt-8 inline-block px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all">
-                Go to Dashboard
-            </a>
+        <div class="py-16 text-center space-y-3 p-6">
+            <div class="text-4xl">📂</div>
+            <h3 class="text-base font-bold text-slate-900">No recent forecasts found</h3>
+            <p class="text-xs text-slate-500 max-w-sm mx-auto">Run a simulation on the home page to populate the forecast history audit log.</p>
+            <div class="pt-2">
+                <a href="{% url 'home' %}" class="inline-flex items-center justify-center rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-all">
+                    Go to Forecast Simulator
+                </a>
+            </div>
         </div>
         {% endif %}
     </div>
 
-    <div class="mt-12 text-center">
-        <a href="{% url 'home' %}" class="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors group">
-            <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-            </svg>
-            Return to Forecasting Engine
-        </a>
-    </div>
 </div>
 {% endblock %}

@@ -126,16 +126,10 @@ class ARIMAXModel:
         self.original_data = df.copy()
         
         required_columns = [
-        'farmgate_price',
-        'oil_price_trend',
-        'peso_dollar_rate',
-        'diesel_price',
-        'labor_min_wage',
+            'farmgate_price',
+            'oil_price_trend',
+            'peso_dollar_rate',
         ]
-
-        # Add diesel and wage only if needed for evaluation mode
-        if not is_deployment:
-            required_columns += ['diesel_price', 'labor_min_wage']
 
         missing_cols = [col for col in required_columns if col not in df.columns]
         if missing_cols:
