@@ -16,7 +16,7 @@ SURIGAO_MUNICIPALITIES = [
 
 PROVINCE_MARKERS = ["surigao del sur"]
 NEXT_PROVINCE_MARKERS = [
-    "surigao del norte", "agusan", "davao", "bukidnon",
+    "srigao del norte", "agusan", "davao", "bukidnon",
     "misamis", "zamboanga", "lanao", "cotabato",
     "sarangani", "south cotabato", "sultan kudarat",
 ]
